@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigation'
 import { colors } from '../styles/theme'
@@ -7,6 +7,8 @@ import { useAuth } from '../store/useAuth'
 import Logo from '../assets/svg/Code/Logo'
 import SplashBottom from '../assets/svg/Code/SplashBottom'
 import Discover from '../assets/svg/Code/Discover'
+import { splashImage } from '../assets/img'
+import { storage } from '../utils/storage'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'splash'>
 
@@ -17,67 +19,50 @@ export default function Splash({ navigation }: Props) {
   const hasHydrated = useAuth(state => state.hasHydrated)
   const [canNavigate, setCanNavigate] = useState(false)
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setCanNavigate(true)
-    }, 1500)
 
-    return () => clearTimeout(timer)
-  }, [])
-
-  useEffect(() => {
-    if (!hasHydrated || !canNavigate) {
-      return
+  const checkAndNavigate = async (token: any) => {
+    const showGetStarted = await storage.getItem("showGetStarted")
+    if (showGetStarted === null) {
+      navigation.replace('GetStarted')
     }
+    if (showGetStarted === "false") {
+      navigation.replace(token ? 'app' : 'login')
+    }
+  }
 
-    navigation.replace(token ? 'app' : 'login')
-  }, [canNavigate, hasHydrated, navigation, token])
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setCanNavigate(true)
+      }, 1500)
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.brandContent}>
-        <Logo  />
+      return () => clearTimeout(timer)
+    }, [])
+
+    useEffect(() => {
+      if (!hasHydrated || !canNavigate) {
+        return
+      }
+
+      checkAndNavigate(token)
+
+    }, [canNavigate, hasHydrated, navigation, token])
+
+    return (
+      <View style={styles.container}>
+        <Image
+          source={splashImage}
+          style={{ width: '100%', height: '100%' }}
+        />
       </View>
-      <View style={{
-        marginTop:-150
-      }}>
-            <Discover />
-      </View>
+    )
+  }
 
+  const styles = StyleSheet.create({
+    container: {
 
-      <SplashBottom />
-    </View>
-  )
-}
+      backgroundColor: colors.transparent,
+      flex: 1
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceDark,
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: 160,
-    paddingHorizontal: 24,
-    paddingTop: 120,
-  },
-  brandContent: {
-    alignItems: 'center',
-  },
-  tagline: {
-    color: colors.textLight,
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 16,
-    marginHorizontal: 8,
-  },
-  taglineLine: {
-    backgroundColor: colors.primary,
-    height: 1,
-    width: 12,
-  },
-  taglineRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginTop: 22,
-  },
-})
+    },
+
+  })

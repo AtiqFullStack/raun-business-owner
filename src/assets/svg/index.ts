@@ -21,6 +21,11 @@ import BackSvg from '../svg/Vector (18).svg';
 import NomralleftArrow from '../svg/back_arrow.svg';
 import LocationMarkerSvg from '../svg/map-marker-svgrepo-com.svg';
 import LocateMapSvg from '../svg/svgviewer-output (1).svg';
+import RstSvg from '../svg/rstSvg.svg';
+import EmailSvg from '../svg/email.svg';
+import LockSvg from '../svg/lock.svg';
+import BusinesIcon from '../svg/Vector (21).svg';
+
 
 export {
   HomeSvg,
@@ -39,5 +44,9 @@ export {
   BackSvg,
   NomralleftArrow,
   LocationMarkerSvg,
-  LocateMapSvg
+  LocateMapSvg,
+  RstSvg,
+  EmailSvg,
+  LockSvg,
+  BusinesIcon
 };

@@ -9,6 +9,14 @@ import PopularResturants from '../pages/PopularResturants';
 import RestaurantDetails from '../pages/RestaurantDetails';
 import SelectLocation from '../pages/SelectLocation';
 import Map from '../pages/Map';
+import GetStarted from '../pages/GetStarted';
+import BusinessInfo from '../pages/BusinessInfo';
+import LocationDetails from '../pages/LocationDetails';
+import BusinessHours from '../pages/BusinessHours';
+import Documents from '../pages/Documents';
+import ProfileUnderReview from '../pages/ProfileUnderReview';
+import OwnerDashboard from '../pages/OwnerDashboard';
+import BusinessSelector from '../pages/BusinessSelector';
 
 export type RootStackParamList = {
   splash: undefined;
@@ -16,6 +24,8 @@ export type RootStackParamList = {
   app: undefined;
   PopularRestaurants: { categoryTitle?: string } | undefined;
   SelectLocation: undefined;
+  tellBusiness: undefined;
+  GetStarted: undefined;
   RestaurantDetails: {
     restaurantId: string;
   };
@@ -23,7 +33,14 @@ export type RootStackParamList = {
     countryCode: string;
     phoneNumber: string;
   };
-  Map:undefined;
+  Map: undefined;
+  // ── Business Owner Onboarding ──────────────────────
+  BusinessInfo: undefined;
+  LocationDetails: undefined;
+  BusinessHours: undefined;
+  Documents: undefined;
+  ProfileUnderReview: undefined;
+  OwnerDashboard: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,19 +48,29 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootStack() {
   return (
     <Stack.Navigator
-      initialRouteName="splash"
+      initialRouteName="tellBusiness"
       screenOptions={{
         headerShown: false,
       }}
     >
       <Stack.Screen name="splash" component={Splash} />
+      <Stack.Screen name="GetStarted" component={GetStarted} />
       <Stack.Screen name="login" component={Login} />
+      <Stack.Screen name="tellBusiness" component={BusinessSelector} />
+
       <Stack.Screen name="otpScreen" component={OtpScreen} />
       <Stack.Screen name="app" component={MainStack} />
       <Stack.Screen name="PopularRestaurants" component={PopularResturants} />
       <Stack.Screen name="SelectLocation" component={SelectLocation} />
       <Stack.Screen name="RestaurantDetails" component={RestaurantDetails} />
       <Stack.Screen name="Map" component={Map} />
+      {/* Business Owner Onboarding Flow */}
+      <Stack.Screen name="BusinessInfo" component={BusinessInfo} />
+      <Stack.Screen name="LocationDetails" component={LocationDetails} />
+      <Stack.Screen name="BusinessHours" component={BusinessHours} />
+      <Stack.Screen name="Documents" component={Documents} />
+      <Stack.Screen name="ProfileUnderReview" component={ProfileUnderReview} />
+      <Stack.Screen name="OwnerDashboard" component={OwnerDashboard} />
     </Stack.Navigator>
   );
 }

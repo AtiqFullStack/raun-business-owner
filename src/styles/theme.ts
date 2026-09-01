@@ -1,10 +1,14 @@
 export const colors = {
-  primary: '#FD7402',
-  primaryDark: '#D95E00',
-  primaryLight: '#FF9A3D',
-  primarySoft: '#FFF1E6',
+  // background: #;
 
-  secondary: '#006C63',
+  primary: '#014D4D',
+  primaryDark: '#D95E00',
+  primaryLight: '#014D4D1A',
+  primarySoft: '#014D4D1A',
+  // background: #;
+
+
+  secondary: '#FD7402',
   secondaryDark: '#014D4D',
   secondaryLight: '#DDF3F0',
 
