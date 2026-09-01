@@ -1,4 +1,4 @@
-package com.raun
+package com.raun.bisnessowner
 
 import android.app.Application
 import com.facebook.react.PackageList
