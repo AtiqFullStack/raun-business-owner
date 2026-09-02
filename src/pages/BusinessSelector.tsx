@@ -4,9 +4,11 @@ import CommonHeader from '../components/CommonHeader';
 import Stepper from '../components/Stepper';
 import Button from '../components/Button';
 import { colors } from '../styles/theme';
-import { ParcelSvg, OnDemand, BusinesIcon } from '../assets/svg';
+import { OnDemand, BusinesIcon } from '../assets/svg';
 import { navigate } from '../navigation/navigationRef';
 import TrueTick from '../assets/svg/Code/TrueTick';
+
+type BusinessOptionKey = 'business' | 'service';
 
 const OPTIONS = [
     {
@@ -24,7 +26,13 @@ const OPTIONS = [
 ];
 
 export default function BusinessSelector() {
-    const [selected, setSelected] = useState<string | null>(null);
+    const [selected, setSelected] = useState<BusinessOptionKey | null>(null);
+
+    const handleContinue = () => {
+        if (!selected) return;
+
+        navigate(selected === 'business' ? 'BusinessInfoOwner' : 'BusinessInfoSP');
+    };
 
     return (
         <View style={styles.screen}>
@@ -46,7 +54,7 @@ export default function BusinessSelector() {
                         <TouchableOpacity
                             key={key}
                             activeOpacity={0.85}
-                            onPress={() => setSelected(key)}
+                            onPress={() => setSelected(key as BusinessOptionKey)}
                             style={[styles.card, isSelected && styles.cardSelected]}>
                             <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
                                 <Icon width={19} height={19} color={colors.primary} />
@@ -66,9 +74,7 @@ export default function BusinessSelector() {
 
                 <Button
                     title="Continue"
-                    onPress={() => { 
-                        navigate('BusinessInfo')
-                    }}
+                    onPress={handleContinue}
                     disabled={!selected}
                     fullWidth
                     style={styles.btn}

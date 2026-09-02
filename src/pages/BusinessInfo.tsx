@@ -122,7 +122,7 @@ const makeEducation = (): EducationEntry => ({
 });
 
 /* ─── Main Screen ────────────────────────────────────────────────── */
-export default function BusinessInfo() {
+export default function BusinessInfoSP() {
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activePickerTarget, setActivePickerTarget] = useState<ActivePickerTarget>(null);
@@ -216,7 +216,7 @@ export default function BusinessInfo() {
   /* ── Navigation ── */
   const handleContinue = () => {
     if (currentStep < 3) setCurrentStep((currentStep + 1) as Step);
-    else navigate('LocationDetails');
+    else navigate('ProfileUnderReview');
   };
 
   const handleBack = () => {

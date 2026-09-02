@@ -10,7 +10,8 @@ import RestaurantDetails from '../pages/RestaurantDetails';
 import SelectLocation from '../pages/SelectLocation';
 import Map from '../pages/Map';
 import GetStarted from '../pages/GetStarted';
-import BusinessInfo from '../pages/BusinessInfo';
+import BusinessInfoSP from '../pages/BusinessInfo';
+import BusinessInfoOwner from '../pages/BusinessInfoOwner';
 import LocationDetails from '../pages/LocationDetails';
 import BusinessHours from '../pages/BusinessHours';
 import Documents from '../pages/Documents';
@@ -35,7 +36,8 @@ export type RootStackParamList = {
   };
   Map: undefined;
   // ── Business Owner Onboarding ──────────────────────
-  BusinessInfo: undefined;
+  BusinessInfoSP: undefined;
+  BusinessInfoOwner: undefined;
   LocationDetails: undefined;
   BusinessHours: undefined;
   Documents: undefined;
@@ -48,7 +50,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootStack() {
   return (
     <Stack.Navigator
-      initialRouteName="BusinessInfo"
+      initialRouteName="splash"
       screenOptions={{
         headerShown: false,
       }}
@@ -64,8 +66,17 @@ export function RootStack() {
       <Stack.Screen name="SelectLocation" component={SelectLocation} />
       <Stack.Screen name="RestaurantDetails" component={RestaurantDetails} />
       <Stack.Screen name="Map" component={Map} />
+
       {/* Business Owner Onboarding Flow */}
-      <Stack.Screen name="BusinessInfo" component={BusinessInfo} />
+      <Stack.Screen name="BusinessInfoOwner" component={BusinessInfoOwner} />
+      {/* <Stack.Screen name="LocationDetails" component={LocationDetails} />
+      <Stack.Screen name="BusinessHours" component={BusinessHours} />
+      <Stack.Screen name="Documents" component={Documents} /> */}
+      {/* <Stack.Screen name="ProfileUnderReview" component={ProfileUnderReview} /> */}
+      {/* <Stack.Screen name="OwnerDashboard" component={OwnerDashboard} /> */}
+
+      {/* Service provider  Onboarding Flow */}
+      <Stack.Screen name="BusinessInfoSP" component={BusinessInfoSP} />
       <Stack.Screen name="LocationDetails" component={LocationDetails} />
       <Stack.Screen name="BusinessHours" component={BusinessHours} />
       <Stack.Screen name="Documents" component={Documents} />
