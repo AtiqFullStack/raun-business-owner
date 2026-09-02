@@ -6,6 +6,7 @@ import Button from '../components/Button';
 import { colors } from '../styles/theme';
 import { ParcelSvg, OnDemand, BusinesIcon } from '../assets/svg';
 import { navigate } from '../navigation/navigationRef';
+import TrueTick from '../assets/svg/Code/TrueTick';
 
 const OPTIONS = [
     {
@@ -48,7 +49,7 @@ export default function BusinessSelector() {
                             onPress={() => setSelected(key)}
                             style={[styles.card, isSelected && styles.cardSelected]}>
                             <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
-                                <Icon width={19} height={19} />
+                                <Icon width={19} height={19} color={colors.primary} />
                             </View>
                             <View style={styles.cardText}>
                                 <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
@@ -57,7 +58,7 @@ export default function BusinessSelector() {
                                 <Text style={styles.cardSub}>{subTitle}</Text>
                             </View>
                             <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                                {isSelected && <View style={styles.radioDot} />}
+                                {isSelected && <TrueTick/>}
                             </View>
                         </TouchableOpacity>
                     );
@@ -149,6 +150,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     radioSelected: {
+        backgroundColor: colors.primary,
         borderColor: colors.primary,
     },
     radioDot: {

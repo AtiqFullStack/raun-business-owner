@@ -9,6 +9,8 @@ import {
   TextStyle,
   TouchableOpacity,
 } from 'react-native';
+import { scale } from '../utils/responsive';
+import { colors } from '../styles/theme';
 
 interface InputTextProps extends TextInputProps {
   label?: string;
@@ -76,6 +78,7 @@ export default function InputText({
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: 16,
+   
   },
   label: {
     fontSize: 14,
@@ -89,8 +92,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#E0E0E0',
     borderRadius: 4,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.surface,
     paddingHorizontal: 12,
+    
+     
   },
   focused: {
     borderColor: '#6C63FF',

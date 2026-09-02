@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { colors } from '../styles/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -72,9 +73,9 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
 
   // Variants
-  primary: { backgroundColor: '#6C63FF' },
-  secondary: { backgroundColor: '#FF6584' },
-  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#6C63FF' },
+  primary: { backgroundColor:colors.primary },
+  secondary: { backgroundColor: colors.secondary },
+  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#E1E8E6' },
   ghost: { backgroundColor: 'transparent' },
   danger: { backgroundColor: '#E53935' },
 
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
   // Variant text colors
   primaryText: { color: '#fff' },
   secondaryText: { color: '#fff' },
-  outlineText: { color: '#6C63FF' },
+  outlineText: { color: '#14211F' },
   ghostText: { color: '#6C63FF' },
   dangerText: { color: '#fff' },
 

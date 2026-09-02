@@ -48,7 +48,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootStack() {
   return (
     <Stack.Navigator
-      initialRouteName="tellBusiness"
+      initialRouteName="BusinessInfo"
       screenOptions={{
         headerShown: false,
       }}
