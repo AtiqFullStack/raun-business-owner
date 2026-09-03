@@ -1,0 +1,136 @@
+diff --git a/node_modules/react-native/Libraries/Network/RCTInspectorNetworkReporter.mm b/node_modules/react-native/Libraries/Network/RCTInspectorNetworkReporter.mm
+index 400209e..81ea489 100644
+--- a/node_modules/react-native/Libraries/Network/RCTInspectorNetworkReporter.mm
++++ b/node_modules/react-native/Libraries/Network/RCTInspectorNetworkReporter.mm
+@@ -27,6 +27,118 @@ Headers convertNSDictionaryToHeaders(const NSDictionary<NSString *, NSString *>
+   return responseHeaders;
+ }
+ 
++NSString *multipartBoundaryFromContentType(NSString *contentType)
++{
++  for (NSString *component in [contentType componentsSeparatedByString:@";"]) {
++    NSString *trimmedComponent = [component stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
++    if (![trimmedComponent hasPrefix:@"boundary="]) {
++      continue;
++    }
++
++    NSString *boundary = [trimmedComponent substringFromIndex:@"boundary=".length];
++    if ([boundary hasPrefix:@"\""] && [boundary hasSuffix:@"\""] && boundary.length >= 2) {
++      boundary = [boundary substringWithRange:NSMakeRange(1, boundary.length - 2)];
++    }
++
++    return boundary;
++  }
++
++  return nil;
++}
++
++std::string convertMultipartRequestBodyToStringTruncated(NSData *bodyData, NSString *boundary, NSUInteger maxBodySize)
++{
++  NSData *boundaryData = [[NSString stringWithFormat:@"--%@", boundary] dataUsingEncoding:NSUTF8StringEncoding];
++  NSData *headerSeparatorData = [@"\r\n\r\n" dataUsingEncoding:NSUTF8StringEncoding];
++  NSData *lineBreakData = [@"\r\n" dataUsingEncoding:NSUTF8StringEncoding];
++  NSMutableString *preview = [NSMutableString string];
++  NSUInteger cursor = 0;
++  NSUInteger bytesAdded = 0;
++
++  while (cursor < bodyData.length && bytesAdded < maxBodySize) {
++    NSRange boundaryRange =
++        [bodyData rangeOfData:boundaryData options:0 range:NSMakeRange(cursor, bodyData.length - cursor)];
++    if (boundaryRange.location == NSNotFound) {
++      break;
++    }
++
++    NSUInteger partStart = boundaryRange.location + boundaryRange.length;
++    if (partStart + 2 <= bodyData.length) {
++      NSData *maybeEndData = [bodyData subdataWithRange:NSMakeRange(partStart, 2)];
++      NSString *maybeEnd = [[NSString alloc] initWithData:maybeEndData encoding:NSUTF8StringEncoding];
++      if ([maybeEnd isEqualToString:@"--"]) {
++        [preview appendFormat:@"--%@--", boundary];
++        break;
++      }
++    }
++
++    if (partStart + lineBreakData.length <= bodyData.length) {
++      NSData *maybeLineBreak = [bodyData subdataWithRange:NSMakeRange(partStart, lineBreakData.length)];
++      if ([maybeLineBreak isEqualToData:lineBreakData]) {
++        partStart += lineBreakData.length;
++      }
++    }
++
++    NSRange nextBoundaryRange =
++        [bodyData rangeOfData:boundaryData options:0 range:NSMakeRange(partStart, bodyData.length - partStart)];
++    if (nextBoundaryRange.location == NSNotFound) {
++      break;
++    }
++
++    NSUInteger partEnd = nextBoundaryRange.location;
++    if (partEnd >= lineBreakData.length) {
++      NSRange trailingLineBreakRange = NSMakeRange(partEnd - lineBreakData.length, lineBreakData.length);
++      NSData *trailingLineBreak = [bodyData subdataWithRange:trailingLineBreakRange];
++      if ([trailingLineBreak isEqualToData:lineBreakData]) {
++        partEnd -= lineBreakData.length;
++      }
++    }
++
++    if (partEnd <= partStart) {
++      cursor = nextBoundaryRange.location;
++      continue;
++    }
++
++    NSData *partData = [bodyData subdataWithRange:NSMakeRange(partStart, partEnd - partStart)];
++    NSRange headerSeparatorRange =
++        [partData rangeOfData:headerSeparatorData options:0 range:NSMakeRange(0, partData.length)];
++    if (headerSeparatorRange.location == NSNotFound) {
++      cursor = nextBoundaryRange.location;
++      continue;
++    }
++
++    NSData *headerData = [partData subdataWithRange:NSMakeRange(0, headerSeparatorRange.location)];
++    NSString *headers = [[NSString alloc] initWithData:headerData encoding:NSUTF8StringEncoding];
++    if (headers == nil) {
++      cursor = nextBoundaryRange.location;
++      continue;
++    }
++
++    NSUInteger valueStart = headerSeparatorRange.location + headerSeparatorRange.length;
++    NSUInteger valueLength = partData.length - valueStart;
++    NSData *valueData = [partData subdataWithRange:NSMakeRange(valueStart, valueLength)];
++    BOOL isFilePart = [headers containsString:@"filename="] || [headers localizedCaseInsensitiveContainsString:@"Content-Type:"];
++    NSString *value = [[NSString alloc] initWithData:valueData encoding:NSUTF8StringEncoding];
++
++    [preview appendFormat:@"--%@\r\n%@\r\n\r\n", boundary, headers];
++    if (!isFilePart && value != nil) {
++      [preview appendString:value];
++    } else {
++      [preview appendFormat:@"[binary content omitted, %@ bytes]", @(valueLength)];
++    }
++    [preview appendString:@"\r\n"];
++
++    bytesAdded = [[preview dataUsingEncoding:NSUTF8StringEncoding] length];
++    cursor = nextBoundaryRange.location;
++  }
++
++  if (bodyData.length > maxBodySize) {
++    [preview appendFormat:@"... [truncated, sanitized preview of %@ bytes]", @(bodyData.length)];
++  }
++
++  return std::string([preview UTF8String]);
++}
++
+ std::string convertRequestBodyToStringTruncated(NSURLRequest *request)
+ {
+   const NSUInteger maxBodySize = 512 * 1024; // 512KB
+@@ -52,6 +164,12 @@ Headers convertNSDictionaryToHeaders(const NSDictionary<NSString *, NSString *>
+   // Attempt UTF-8 decoding
+   NSString *bodyString = [[NSString alloc] initWithData:truncatedData encoding:NSUTF8StringEncoding];
+   if (bodyString == nil) {
++    NSString *contentType = [request valueForHTTPHeaderField:@"Content-Type"];
++    NSString *boundary = multipartBoundaryFromContentType(contentType);
++    if (boundary.length > 0) {
++      return convertMultipartRequestBodyToStringTruncated(bodyData, boundary, maxBodySize);
++    }
++
+     return "[Preview unavailable]";
+   }
+ 

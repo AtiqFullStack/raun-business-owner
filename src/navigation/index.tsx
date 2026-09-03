@@ -8,7 +8,7 @@ import MainStack from '../routes/TabNavigation';
 import PopularResturants from '../pages/PopularResturants';
 import RestaurantDetails from '../pages/RestaurantDetails';
 import SelectLocation from '../pages/SelectLocation';
-import Map from '../pages/Map';
+import Map from '../components/Map';
 import GetStarted from '../pages/GetStarted';
 import BusinessInfoSP from '../pages/BusinessInfo';
 import BusinessInfoOwner from '../pages/BusinessInfoOwner';
@@ -25,7 +25,14 @@ export type RootStackParamList = {
   app: undefined;
   PopularRestaurants: { categoryTitle?: string } | undefined;
   SelectLocation: undefined;
-  tellBusiness: undefined;
+  tellBusiness:
+    | {
+        authDraft?: {
+          email: string;
+          password: string;
+        };
+      }
+    | undefined;
   GetStarted: undefined;
   RestaurantDetails: {
     restaurantId: string;
@@ -36,8 +43,26 @@ export type RootStackParamList = {
   };
   Map: undefined;
   // ── Business Owner Onboarding ──────────────────────
-  BusinessInfoSP: undefined;
-  BusinessInfoOwner: undefined;
+  BusinessInfoSP:
+    | {
+        initialStep?: 1 | 2 | 3;
+        authDraft?: {
+          email: string;
+          password: string;
+          type: string;
+        };
+      }
+    | undefined;
+  BusinessInfoOwner:
+    | {
+        initialStep?: 1 | 2 | 3 | 4;
+        authDraft?: {
+          email: string;
+          password: string;
+          type: string;
+        };
+      }
+    | undefined;
   LocationDetails: undefined;
   BusinessHours: undefined;
   Documents: undefined;

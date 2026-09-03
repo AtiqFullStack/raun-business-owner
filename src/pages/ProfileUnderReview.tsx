@@ -10,11 +10,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../styles/theme';
 import { vw, vh } from '../utils/responsive';
-import { navigate } from '../navigation/navigationRef';
+import { resetTo } from '../navigation/navigationRef';
 import { profileUnderReviewImage } from '../assets/img';
+import { useAuth } from '../store/useAuth';
 
 export default function ProfileUnderReview() {
   const insets = useSafeAreaInsets();
+  const logout = useAuth(state => state.logout);
+
+  const handleBackToLogin = () => {
+    logout();
+    resetTo('login');
+  };
 
   return (
     <View style={styles.container}>
@@ -41,9 +48,9 @@ export default function ProfileUnderReview() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.dashboardButton}
-          onPress={() => navigate('OwnerDashboard')}
+          onPress={handleBackToLogin}
         >
-          <Text style={styles.dashboardButtonText}>Go To Dashboard</Text>
+          <Text style={styles.dashboardButtonText}>Back To Login</Text>
         </TouchableOpacity>
       </View>
     </View>

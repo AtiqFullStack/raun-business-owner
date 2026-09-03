@@ -1,4 +1,11 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+} from 'react-native';
 import React, { useState, useRef } from 'react';
 import CommonHeader, {
   BellIcon,
@@ -7,7 +14,7 @@ import CommonHeader, {
 } from '../../components/CommonHeader';
 import { colors } from '../../styles/theme';
 import ListingView from './ListingView';
-import MapView from '../Map';
+import MapView from '../../components/Map';
 
 const SLIDER_WIDTH = (Dimensions.get('window').width - 20) / 2.05;
 
@@ -40,54 +47,80 @@ export default function DiscoverMap() {
       </CommonHeader>
 
       <View style={styles.buttons}>
-        <Animated.View style={[styles.slider, { transform: [{ translateX: slideAnim }] }]} />
-        <TouchableOpacity style={styles.button} onPress={() => handleSelect('List')}>
-          <Text style={[styles.buttontext, { color: selectedButton === 'List' ? colors.textLight : colors.textDark }]}>List View</Text>
+        <Animated.View
+          style={[styles.slider, { transform: [{ translateX: slideAnim }] }]}
+        />
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => handleSelect('List')}
+        >
+          <Text
+            style={[
+              styles.buttontext,
+              {
+                color:
+                  selectedButton === 'List'
+                    ? colors.textLight
+                    : colors.textDark,
+              },
+            ]}
+          >
+            List View
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => handleSelect('map')}>
-          <Text style={[styles.buttontext, { color: selectedButton === 'map' ? colors.textLight : colors.textDark }]}>Map View</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => handleSelect('map')}
+        >
+          <Text
+            style={[
+              styles.buttontext,
+              {
+                color:
+                  selectedButton === 'map' ? colors.textLight : colors.textDark,
+              },
+            ]}
+          >
+            Map View
+          </Text>
         </TouchableOpacity>
       </View>
-     {
-       selectedButton == "List" ? <ListingView/> :<MapView/> 
-     }
+      {selectedButton === 'List' ? <ListingView /> : <MapView />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-    buttons:{
-        flexDirection:'row',
-        alignItems:"center",
-        borderColor:colors.placeholder,
-        borderWidth:1,
-        marginHorizontal:10,
-        borderRadius:3,
-        height:39,
-        marginTop:10,
-        overflow:'hidden',
-        position:'relative',
-    },
-    slider:{
-        position:'absolute',
-        width:'50%',
-        height:'90%',
-        backgroundColor:colors.primary,
-        borderRadius:3,
-        marginVertical:5,
-        
-    },
-    button:{
-        height:34,
-        justifyContent:"center",
-        alignItems:"center",
-        // borderColor:"black",
-        // borderWidth:1,
-        width:"48%",
-        borderRadius:10,
-        
-    },
-    buttontext:{
-        fontWeight:"600"
-    }
+  buttons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: colors.placeholder,
+    borderWidth: 1,
+    marginHorizontal: 10,
+    borderRadius: 3,
+    height: 39,
+    marginTop: 10,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  slider: {
+    position: 'absolute',
+    width: '50%',
+    height: '90%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+    marginVertical: 5,
+  },
+  button: {
+    height: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // borderColor:"black",
+    // borderWidth:1,
+    width: '48%',
+    borderRadius: 10,
+  },
+  buttontext: {
+    fontWeight: '600',
+  },
 });

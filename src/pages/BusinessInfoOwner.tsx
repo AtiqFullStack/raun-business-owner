@@ -9,22 +9,40 @@ import {
   View,
 } from 'react-native';
 import { ImagePickerResponse } from 'react-native-image-picker';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Button from '../components/Button';
 import CommonHeader from '../components/CommonHeader';
 import ImagePickerModal from '../components/PickImage';
 import InputText from '../components/InputText';
 import KeyboardWrapper from '../components/KeyboardWrapper';
 import Select from '../components/Select';
+import MapView, { type MapCoordinates } from '../components/Map';
 import CameraSvg from '../assets/svg/Code/CameraSvg';
 import { navigate } from '../navigation/navigationRef';
 import { colors } from '../styles/theme';
 import { scale, vh } from '../utils/responsive';
+import type { RootStackParamList } from '../navigation';
+import { useAuth } from '../store/useAuth';
+import { useToast } from '../store/useToast';
+import {
+  isApiSuccess,
+  useBusinessOwnerService,
+  type BusinessOwner,
+  type BusinessHourPayload,
+  type UploadFile,
+} from '../services/businessOwnerService';
 
 type Step = 1 | 2 | 3 | 4;
-type PickerTarget = 'businessPhoto' | 'tradeLicense' | 'fassiCertificate' | 'idProof' | null;
+type Props = NativeStackScreenProps<RootStackParamList, 'BusinessInfoOwner'>;
+type PickerTarget =
+  | 'businessPhoto'
+  | 'tradeLicense'
+  | 'fssaiCertificate'
+  | 'idProof'
+  | null;
 
 type BusinessForm = {
-  businessPhotoUri: string | null;
+  businessPhoto: UploadFile | null;
   businessName: string;
   cuisineType: string;
   businessType: string;
@@ -35,6 +53,7 @@ type LocationForm = {
   area: string;
   city: string;
   pinCode: string;
+  coordinates: MapCoordinates | null;
 };
 
 type DayHours = {
@@ -44,10 +63,24 @@ type DayHours = {
 };
 
 type DocumentForm = {
-  tradeLicense: string | null;
-  fassiCertificate: string | null;
-  idProof: string | null;
+  tradeLicense: UploadFile | null;
+  fssaiCertificate: UploadFile | null;
+  idProof: UploadFile | null;
 };
+
+const buildOwnerUser = (owner: BusinessOwner) => ({
+  id: owner._id,
+  name: owner.email,
+  email: owner.email,
+  role: owner.role,
+  profileDetails: {
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    email: owner.email,
+    role: owner.role,
+  },
+});
 
 const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   1: {
@@ -68,75 +101,86 @@ const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   },
 };
 
-const BUSINESS_OPTIONS = [
-  { label: 'Raun Restaurant', value: 'raun_restaurant' },
-  { label: 'Cafe', value: 'cafe' },
-  { label: 'Cloud Kitchen', value: 'cloud_kitchen' },
-];
-
 const CUISINE_OPTIONS = [
-  { label: 'Indian', value: 'indian' },
-  { label: 'Arabic', value: 'arabic' },
-  { label: 'Italian', value: 'italian' },
-  { label: 'Chinese', value: 'chinese' },
+  { label: 'Indian', value: 'Indian' },
+  { label: 'Arabic', value: 'Arabic' },
+  { label: 'Italian', value: 'Italian' },
+  { label: 'Chinese', value: 'Chinese' },
 ];
 
 const BUSINESS_TYPE_OPTIONS = [
-  { label: 'Restaurant', value: 'restaurant' },
-  { label: 'Cafe', value: 'cafe' },
-  { label: 'Bakery', value: 'bakery' },
-  { label: 'Food Truck', value: 'food_truck' },
+  { label: 'Restaurant', value: 'Restaurant' },
+  { label: 'Cafe', value: 'Cafe' },
+  { label: 'Bakery', value: 'Bakery' },
+  { label: 'Food Truck', value: 'Food Truck' },
 ];
 
 const CITY_OPTIONS = [
-  { label: 'Dubai', value: 'dubai' },
-  { label: 'Abu Dhabi', value: 'abu_dhabi' },
-  { label: 'Sharjah', value: 'sharjah' },
-  { label: 'Ajman', value: 'ajman' },
+  { label: 'Dubai', value: 'Dubai' },
+  { label: 'Abu Dhabi', value: 'Abu Dhabi' },
+  { label: 'Sharjah', value: 'Sharjah' },
+  { label: 'Ajman', value: 'Ajman' },
 ];
 
 const DAYS = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
 ];
 
 const TIME_OPTIONS = [
-  '06:00 AM',
-  '07:00 AM',
-  '08:00 AM',
-  '09:00 AM',
-  '10:00 AM',
-  '11:00 AM',
-  '12:00 PM',
-  '01:00 PM',
-  '02:00 PM',
-  '03:00 PM',
-  '04:00 PM',
-  '05:00 PM',
-  '06:00 PM',
-  '07:00 PM',
-  '08:00 PM',
-  '09:00 PM',
-  '10:00 PM',
-  '11:00 PM',
+  '06:00',
+  '07:00',
+  '08:00',
+  '09:00',
+  '10:00',
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+  '17:00',
+  '18:00',
+  '19:00',
+  '20:00',
+  '21:00',
+  '22:00',
+  '23:00',
 ];
 
-const DEFAULT_HOURS: Record<string, DayHours> = Object.fromEntries(
-  DAYS.map(day => [day, { enabled: true, openTime: '09:00 AM', closeTime: '11:00 AM' }]),
-) as Record<string, DayHours>;
+const DEFAULT_HOURS: Record<string, DayHours> = {
+  MONDAY: { enabled: true, openTime: '09:00', closeTime: '22:00' },
+  TUESDAY: { enabled: true, openTime: '09:00', closeTime: '22:00' },
+  WEDNESDAY: { enabled: true, openTime: '09:00', closeTime: '22:00' },
+  THURSDAY: { enabled: true, openTime: '09:00', closeTime: '22:00' },
+  FRIDAY: { enabled: true, openTime: '09:00', closeTime: '23:00' },
+  SATURDAY: { enabled: true, openTime: '10:00', closeTime: '23:00' },
+  SUNDAY: { enabled: false, openTime: '', closeTime: '' },
+};
 
-export default function BusinessInfoOwner() {
-  const [currentStep, setCurrentStep] = useState<Step>(1);
+export default function BusinessInfoOwner({ route }: Props) {
+  const [currentStep, setCurrentStep] = useState<Step>(
+    route.params?.initialStep || 1,
+  );
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
+  const login = useAuth(state => state.login);
+  const showToast = useToast(state => state.showToast);
+  const {
+    authenticateOwner,
+    updateBusinessHours,
+    updateBusinessDocuments,
+    loading,
+    clearError,
+  } = useBusinessOwnerService();
 
   const [businessForm, setBusinessForm] = useState<BusinessForm>({
-    businessPhotoUri: null,
+    businessPhoto: null,
     businessName: '',
     cuisineType: '',
     businessType: '',
@@ -147,6 +191,7 @@ export default function BusinessInfoOwner() {
     area: '',
     city: '',
     pinCode: '',
+    coordinates: null,
   });
 
   const [hours, setHours] = useState<Record<string, DayHours>>(DEFAULT_HOURS);
@@ -158,7 +203,7 @@ export default function BusinessInfoOwner() {
 
   const [documents, setDocuments] = useState<DocumentForm>({
     tradeLicense: null,
-    fassiCertificate: null,
+    fssaiCertificate: null,
     idProof: null,
   });
 
@@ -168,23 +213,178 @@ export default function BusinessInfoOwner() {
   };
 
   const handlePickerResult = (response: ImagePickerResponse) => {
-    const uri = response.assets?.[0]?.uri;
+    const asset = response.assets?.[0];
+    const uri = asset?.uri;
     if (!uri || !pickerTarget) return;
 
+    const selectedFile: UploadFile = {
+      uri,
+      name: asset.fileName,
+      type: asset.type,
+    };
+
     if (pickerTarget === 'businessPhoto') {
-      setBusinessForm(prev => ({ ...prev, businessPhotoUri: uri }));
+      setBusinessForm(prev => ({ ...prev, businessPhoto: selectedFile }));
     } else {
-      setDocuments(prev => ({ ...prev, [pickerTarget]: uri }));
+      setDocuments(prev => ({ ...prev, [pickerTarget]: selectedFile }));
+    }
+  };
+
+  const buildBusinessHoursPayload = (): BusinessHourPayload[] =>
+    DAYS.map(day => {
+      const dayHours = hours[day];
+      const isClosed = !dayHours.enabled;
+
+      return {
+        day,
+        isClosed,
+        openTime: isClosed ? '' : dayHours.openTime,
+        closeTime: isClosed ? '' : dayHours.closeTime,
+      };
+    });
+
+  const handleBusinessAuthSubmit = async () => {
+    const authDraft = route.params?.authDraft;
+
+    if (!authDraft?.email || !authDraft.password) {
+      showToast('Please login again before completing onboarding.', 'error');
+      navigate('login');
+      return;
+    }
+
+    if (
+      !businessForm.businessName ||
+      !businessForm.cuisineType ||
+      !businessForm.businessType ||
+      !businessForm.businessPhoto ||
+      !locationForm.address ||
+      !locationForm.area ||
+      !locationForm.city ||
+      !locationForm.pinCode ||
+      !locationForm.coordinates
+    ) {
+      showToast('Please complete all business and location details.', 'error');
+      return;
+    }
+
+    try {
+      clearError();
+      const response = await authenticateOwner({
+        email: authDraft.email,
+        password: authDraft.password,
+        type: authDraft.type,
+        businessPhoto: businessForm.businessPhoto,
+        businessName: businessForm.businessName,
+        cuisineType: businessForm.cuisineType,
+        businessType: businessForm.businessType,
+        address: locationForm.address,
+        area: locationForm.area,
+        city: locationForm.city,
+        pinCode: locationForm.pinCode,
+        location: {
+          type: 'Point',
+          coordinates: [
+            locationForm.coordinates.longitude,
+            locationForm.coordinates.latitude,
+          ],
+        },
+      });
+
+      if (
+        isApiSuccess(response.success) &&
+        response.data?.token &&
+        response.data.owner
+      ) {
+        login(buildOwnerUser(response.data.owner), response.data.token, {
+          ownerType: response.data.owner.type ?? null,
+          isProfileCompleted: response.data.owner.isProfileCompleted ?? null,
+        });
+        setCurrentStep(3);
+        return;
+      }
+
+      showToast(
+        response.message || 'Unable to save business details.',
+        'error',
+      );
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Unable to save business details.';
+      showToast(message, 'error');
+    }
+  };
+
+  const handleHoursSubmit = async () => {
+    try {
+      clearError();
+      const response = await updateBusinessHours(buildBusinessHoursPayload());
+
+      if (!isApiSuccess(response.success)) {
+        showToast(
+          response.message || 'Unable to save business hours.',
+          'error',
+        );
+        return;
+      }
+
+      setCurrentStep(4);
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Unable to save business hours.';
+      showToast(message, 'error');
+    }
+  };
+
+  const handleDocumentsSubmit = async () => {
+    if (
+      !documents.tradeLicense ||
+      !documents.fssaiCertificate ||
+      !documents.idProof
+    ) {
+      showToast('Please upload all required documents.', 'error');
+      return;
+    }
+
+    try {
+      clearError();
+      const response = await updateBusinessDocuments(documents);
+
+      if (!isApiSuccess(response.success)) {
+        showToast(response.message || 'Unable to upload documents.', 'error');
+        return;
+      }
+
+      navigate('ProfileUnderReview');
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Unable to upload documents.';
+      showToast(message, 'error');
     }
   };
 
   const handleContinue = () => {
-    if (currentStep < 4) {
-      setCurrentStep((currentStep + 1) as Step);
+    if (currentStep === 1) {
+      setCurrentStep(2);
       return;
     }
 
-    navigate('ProfileUnderReview');
+    if (currentStep === 2) {
+      handleBusinessAuthSubmit();
+      return;
+    }
+
+    if (currentStep === 3) {
+      handleHoursSubmit();
+      return;
+    }
+
+    handleDocumentsSubmit();
   };
 
   const toggleDay = (day: string) => {
@@ -212,7 +412,9 @@ export default function BusinessInfoOwner() {
         children={
           <View style={styles.headerContent}>
             <Text style={styles.heading}>{STEP_META[currentStep].title}</Text>
-            <Text style={styles.subHeading}>{STEP_META[currentStep].subtitle}</Text>
+            <Text style={styles.subHeading}>
+              {STEP_META[currentStep].subtitle}
+            </Text>
             <OwnerStepper currentStep={currentStep} />
           </View>
         }
@@ -242,6 +444,9 @@ export default function BusinessInfoOwner() {
               onFormChange={(field, value) =>
                 setLocationForm(prev => ({ ...prev, [field]: value }))
               }
+              onCoordinatesChange={coordinates =>
+                setLocationForm(prev => ({ ...prev, coordinates }))
+              }
             />
           )}
 
@@ -256,15 +461,13 @@ export default function BusinessInfoOwner() {
           )}
 
           {currentStep === 4 && (
-            <DocumentsStep
-              documents={documents}
-              onPickDocument={openPicker}
-            />
+            <DocumentsStep documents={documents} onPickDocument={openPicker} />
           )}
 
           <Button
             title={currentStep === 4 ? 'Submit For Review' : 'Continue'}
             onPress={handleContinue}
+            loading={loading}
             fullWidth
             style={styles.continueButton}
             textStyle={styles.continueButtonText}
@@ -275,7 +478,8 @@ export default function BusinessInfoOwner() {
       {timePicker.visible && (
         <View style={styles.timeSheet}>
           <Text style={styles.timeSheetTitle}>
-            Select {timePicker.field === 'openTime' ? 'Opening' : 'Closing'} Time
+            Select {timePicker.field === 'openTime' ? 'Opening' : 'Closing'}{' '}
+            Time
           </Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {TIME_OPTIONS.map(time => (
@@ -292,7 +496,9 @@ export default function BusinessInfoOwner() {
           <TouchableOpacity
             activeOpacity={0.75}
             style={styles.cancelTimeButton}
-            onPress={() => setTimePicker({ visible: false, day: '', field: 'openTime' })}
+            onPress={() =>
+              setTimePicker({ visible: false, day: '', field: 'openTime' })
+            }
           >
             <Text style={styles.cancelTimeText}>Cancel</Text>
           </TouchableOpacity>
@@ -306,7 +512,9 @@ function OwnerStepper({ currentStep }: { currentStep: Step }) {
   return (
     <View style={styles.stepper}>
       <View style={styles.stepperTrack}>
-        <View style={[styles.stepperFill, { width: `${(currentStep / 4) * 100}%` }]} />
+        <View
+          style={[styles.stepperFill, { width: `${(currentStep / 4) * 100}%` }]}
+        />
       </View>
       <View style={styles.stepperTrack} />
     </View>
@@ -350,7 +558,10 @@ function BusinessDetailsStep({
   onPickPhoto,
 }: {
   form: BusinessForm;
-  onFormChange: (field: keyof BusinessForm, value: string) => void;
+  onFormChange: (
+    field: Exclude<keyof BusinessForm, 'businessPhoto'>,
+    value: string,
+  ) => void;
   onPickPhoto: () => void;
 }) {
   return (
@@ -358,19 +569,19 @@ function BusinessDetailsStep({
       <Text style={styles.fieldLabel}>Business Photo</Text>
       <UploadBox
         label="Photos"
-        uri={form.businessPhotoUri}
+        uri={form.businessPhoto?.uri}
         onPress={onPickPhoto}
         large
       />
 
-      <Select
+      <InputText
         label="Business Name"
-        placeholder=""
-        options={BUSINESS_OPTIONS}
+        placeholder="Enter Business Name"
         value={form.businessName}
-        onChange={value => onFormChange('businessName', value)}
+        onChangeText={value => onFormChange('businessName', value)}
         containerStyle={styles.fieldSpacing}
         labelStyle={styles.compactLabel}
+        inputStyle={styles.inputText}
       />
       <Select
         label="Cuisine Type"
@@ -397,9 +608,14 @@ function BusinessDetailsStep({
 function LocationDetailsStep({
   form,
   onFormChange,
+  onCoordinatesChange,
 }: {
   form: LocationForm;
-  onFormChange: (field: keyof LocationForm, value: string) => void;
+  onFormChange: (
+    field: Exclude<keyof LocationForm, 'coordinates'>,
+    value: string,
+  ) => void;
+  onCoordinatesChange: (coordinates: MapCoordinates) => void;
 }) {
   return (
     <View>
@@ -446,15 +662,11 @@ function LocationDetailsStep({
       </View>
 
       <View style={styles.mapBox}>
-        <View style={[styles.mapShape, styles.mapShapeTopLeft]} />
-        <View style={[styles.mapShape, styles.mapShapeTopRight]} />
-        <View style={[styles.mapShape, styles.mapShapeBottomLeft]} />
-        <View style={[styles.mapRoad, styles.mapRoadOne]} />
-        <View style={[styles.mapRoad, styles.mapRoadTwo]} />
-        <View style={[styles.mapRoad, styles.mapRoadThree]} />
-        <View style={styles.mapPin}>
-          <View style={styles.mapPinDot} />
-        </View>
+        <MapView
+          selectedCoordinates={form.coordinates}
+          onSelectCoordinates={onCoordinatesChange}
+          showSelectedLabel
+        />
       </View>
     </View>
   );
@@ -518,21 +730,21 @@ function DocumentsStep({
       <Text style={styles.fieldLabel}>Trade License</Text>
       <UploadBox
         label="Upload"
-        uri={documents.tradeLicense}
+        uri={documents.tradeLicense?.uri}
         onPress={() => onPickDocument('tradeLicense')}
       />
 
-      <Text style={styles.fieldLabel}>Fassi Certificate</Text>
+      <Text style={styles.fieldLabel}>FSSAI Certificate</Text>
       <UploadBox
         label="Upload"
-        uri={documents.fassiCertificate}
-        onPress={() => onPickDocument('fassiCertificate')}
+        uri={documents.fssaiCertificate?.uri}
+        onPress={() => onPickDocument('fssaiCertificate')}
       />
 
       <Text style={styles.fieldLabel}>ID Proof</Text>
       <UploadBox
         label="Upload"
-        uri={documents.idProof}
+        uri={documents.idProof?.uri}
         onPress={() => onPickDocument('idProof')}
       />
     </View>
@@ -654,76 +866,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.primaryLight,
     position: 'relative',
-  },
-  mapShape: {
-    position: 'absolute',
-    backgroundColor: '#BFE9D5',
-    opacity: 0.9,
-  },
-  mapShapeTopLeft: {
-    top: -24,
-    left: -30,
-    width: '72%',
-    height: '60%',
-    borderBottomRightRadius: 90,
-  },
-  mapShapeTopRight: {
-    top: 12,
-    right: -22,
-    width: '52%',
-    height: '48%',
-    borderBottomLeftRadius: 70,
-  },
-  mapShapeBottomLeft: {
-    left: 6,
-    bottom: -28,
-    width: '76%',
-    height: '54%',
-    borderTopRightRadius: 86,
-  },
-  mapRoad: {
-    position: 'absolute',
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: colors.surface,
-    opacity: 0.85,
-  },
-  mapRoadOne: {
-    left: -20,
-    right: 42,
-    top: 58,
-    transform: [{ rotate: '-12deg' }],
-  },
-  mapRoadTwo: {
-    left: 44,
-    right: -28,
-    top: 112,
-    transform: [{ rotate: '18deg' }],
-  },
-  mapRoadThree: {
-    left: -16,
-    right: 18,
-    bottom: 42,
-    transform: [{ rotate: '8deg' }],
-  },
-  mapPin: {
-    position: 'absolute',
-    left: '42%',
-    top: '43%',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapPinDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
   },
   hoursList: {
     paddingTop: 18,

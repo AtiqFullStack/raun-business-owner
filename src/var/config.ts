@@ -1,5 +1,5 @@
-export const API_BASE_URL ="https://raunbn.com/backend/"
-// export const API_BASE_URL ="https://mrjmh0t7-1111.inc1.devtunnels.ms/"
+// export const API_BASE_URL ="https://v28lskqk-1111.inc1.devtunnels.ms/api"
+export const API_BASE_URL ="https://raunbn.com/backend/api"
 
-// export const IMAGE_BASE_URL ="https://mrjmh0t7-1111.inc1.devtunnels.ms/"
-export const IMAGE_BASE_URL ="https://raunbn.com/backend/"
+export const IMAGE_BASE_URL ="https://raunbn.com/backend"
+// export const IMAGE_BASE_URL ="https://v28lskqk-1111.inc1.devtunnels.ms/"

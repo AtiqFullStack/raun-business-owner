@@ -8,14 +8,21 @@ export const useAuth = create<AuthState>()(
     set => ({
       user: null,
       token: null,
+      ownerType: null,
+      isProfileCompleted: null,
       hasHydrated: false,
 
       setHasHydrated: hasHydrated => {
         set({ hasHydrated });
       },
 
-      login: (user, token) => {
-        set({ user, token });
+      login: (user, token, ownerMeta) => {
+        set({
+          user,
+          token,
+          ownerType: ownerMeta?.ownerType ?? null,
+          isProfileCompleted: ownerMeta?.isProfileCompleted ?? null,
+        });
       },
 
       updateUserProfile: profileDetails => {
@@ -40,7 +47,12 @@ export const useAuth = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, token: null });
+        set({
+          user: null,
+          token: null,
+          ownerType: null,
+          isProfileCompleted: null,
+        });
       },
     }),
     {
