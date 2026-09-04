@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View ,TouchableOpacity} from 'react-native';
 import React, { useState } from 'react';
 import { colors } from '../styles/theme';
 import Logo from '../assets/svg/Code/Logo';
@@ -78,10 +78,18 @@ const goToSelector = (email: string, password: string) => {
   });
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type LoginFieldErrors = {
+  email?: string;
+  password?: string;
+};
+
 export default function Login() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const [fieldErrors, setFieldErrors] = React.useState<LoginFieldErrors>({});
   const login = useAuth(state => state.login);
   const storedIsProfileCompleted = useAuth(state => state.isProfileCompleted);
   const showToast = useToast(state => state.showToast);
@@ -89,13 +97,27 @@ export default function Login() {
 
   const handleLogin = async () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      setError('Please enter email and password.');
+    const nextFieldErrors: LoginFieldErrors = {};
+
+    if (!trimmedEmail) {
+      nextFieldErrors.email = 'Email is required.';
+    } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+      nextFieldErrors.email = 'Please enter a valid email address.';
+    }
+
+    if (!password) {
+      nextFieldErrors.password = 'Password is required.';
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError('');
       return;
     }
 
     try {
       setError('');
+      setFieldErrors({});
       clearError();
       const response = await authenticateOwner({
         email: trimmedEmail,
@@ -252,8 +274,18 @@ export default function Login() {
             email={email}
             password={password}
             error={error}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
+            emailError={fieldErrors.email}
+            passwordError={fieldErrors.password}
+            onEmailChange={value => {
+              setEmail(value);
+              setError('');
+              setFieldErrors(prev => ({ ...prev, email: undefined }));
+            }}
+            onPasswordChange={value => {
+              setPassword(value);
+              setError('');
+              setFieldErrors(prev => ({ ...prev, password: undefined }));
+            }}
           />
         </View>
 
@@ -277,12 +309,16 @@ const Loginform = ({
   email,
   password,
   error,
+  emailError,
+  passwordError,
   onEmailChange,
   onPasswordChange,
 }: {
   email: string;
   password: string;
   error?: string;
+  emailError?: string;
+  passwordError?: string;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
 }) => {
@@ -300,6 +336,7 @@ const Loginform = ({
           autoCapitalize="none"
           keyboardType="email-address"
           containerStyle={{ borderRadius: 4 }}
+          error={emailError}
         />
         <InputText
           placeholder={'Mypassword1&'}
@@ -320,10 +357,11 @@ const Loginform = ({
           onRightIconPress={() => {
             setHidePassword(pre => !pre);
           }}
+          error={passwordError}
         />
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
-      <TouchableOpacity>
+      {/* <TouchableOpacity>
         <Text
           style={{
             alignSelf: 'flex-end',
@@ -334,7 +372,7 @@ const Loginform = ({
         >
           Forgot Password?
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };

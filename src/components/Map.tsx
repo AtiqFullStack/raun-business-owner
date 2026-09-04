@@ -1,6 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
+  type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -12,8 +19,10 @@ import Svg, { Path } from 'react-native-svg';
 import {
   Camera,
   type CameraRef,
-  Map,
+  Map as MapLibreMap,
+  type MapRef,
   Marker,
+  type ViewStateChangeEvent,
 } from '@maplibre/maplibre-react-native';
 import useLocation from '../hooks/useLocation';
 import { LocateMapSvg } from '../assets/svg';
@@ -58,12 +67,19 @@ export default function MapView({
   const { getPhysicalLocations, loading } = useLocation();
   const coords = useLocationStore(state => state.coords);
   const cameraRef = useRef<CameraRef | null>(null);
+  const mapRef = useRef<MapRef | null>(null);
+  const visibleCenterRef = useRef<[number, number]>(DEFAULT_LOCATION);
+  const centerOnLocationRequestRef = useRef(false);
+  const skipNextSelectionCameraRef = useRef(false);
   const [zoom, setZoom] = useState(12);
   const [localSelection, setLocalSelection] = useState<MapCoordinates | null>(
     selectedCoordinates || null,
   );
 
   const selectedPoint = selectedCoordinates || localSelection;
+  const centerSelectionEnabled = Boolean(
+    onSelectCoordinates || showSelectedLabel,
+  );
   const cameraCenter = useMemo<[number, number]>(() => {
     if (selectedPoint) {
       return [selectedPoint.longitude, selectedPoint.latitude];
@@ -76,25 +92,66 @@ export default function MapView({
     return DEFAULT_LOCATION;
   }, [coords, selectedPoint]);
 
+  const updateSelection = useCallback(
+    (nextSelection: MapCoordinates) => {
+      setLocalSelection(nextSelection);
+      onSelectCoordinates?.(nextSelection);
+    },
+    [onSelectCoordinates],
+  );
+
+  const moveCameraTo = useCallback(
+    (center: [number, number], nextZoom: number, duration = 400) => {
+      visibleCenterRef.current = center;
+      setZoom(nextZoom);
+      cameraRef.current?.easeTo({
+        center,
+        zoom: nextZoom,
+        duration,
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!coords && !selectedPoint) {
       getPhysicalLocations();
       return;
     }
 
-    cameraRef.current?.easeTo({
-      center: cameraCenter,
-      zoom: selectedPoint ? 16 : 14,
-      duration: 700,
-    });
-  }, [cameraCenter, coords, getPhysicalLocations, selectedPoint]);
+    if (coords && centerOnLocationRequestRef.current) {
+      centerOnLocationRequestRef.current = false;
+
+      const currentLocation = {
+        longitude: coords.longitude,
+        latitude: coords.latitude,
+      };
+
+      updateSelection(currentLocation);
+      moveCameraTo([coords.longitude, coords.latitude], 16, 700);
+      return;
+    }
+
+    if (skipNextSelectionCameraRef.current) {
+      skipNextSelectionCameraRef.current = false;
+      return;
+    }
+
+    moveCameraTo(cameraCenter, selectedPoint ? 16 : 14, 700);
+  }, [
+    cameraCenter,
+    coords,
+    getPhysicalLocations,
+    moveCameraTo,
+    selectedPoint,
+    updateSelection,
+  ]);
 
   const moveCamera = (nextZoom: number) => {
-    cameraRef.current?.easeTo({
-      center: cameraCenter,
-      zoom: nextZoom,
-      duration: 400,
-    });
+    moveCameraTo(
+      centerSelectionEnabled ? visibleCenterRef.current : cameraCenter,
+      nextZoom,
+    );
   };
 
   const handleZoomIn = () => {
@@ -110,6 +167,7 @@ export default function MapView({
   };
 
   const handleLocationPress = () => {
+    centerOnLocationRequestRef.current = true;
     getPhysicalLocations();
   };
 
@@ -124,17 +182,52 @@ export default function MapView({
       latitude: Number(lngLat[1]),
     };
 
-    setLocalSelection(nextSelection);
-    onSelectCoordinates?.(nextSelection);
+    updateSelection(nextSelection);
+  };
+
+  const handleRegionDidChange = (
+    event: NativeSyntheticEvent<ViewStateChangeEvent>,
+  ) => {
+    const { center, userInteraction, zoom: nextZoom } = event.nativeEvent;
+
+    if (typeof nextZoom === 'number') {
+      setZoom(nextZoom);
+    }
+
+    if (!centerSelectionEnabled || !userInteraction) {
+      return;
+    }
+
+    if (!Array.isArray(center) || center.length < 2) {
+      return;
+    }
+
+    const nextCenter: [number, number] = [Number(center[0]), Number(center[1])];
+
+    visibleCenterRef.current = nextCenter;
+    skipNextSelectionCameraRef.current = true;
+    updateSelection({
+      longitude: nextCenter[0],
+      latitude: nextCenter[1],
+    });
   };
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <Map
+      <MapLibreMap
+        ref={mapRef}
         style={styles.map}
         mapStyle={MAP_STYLE_URL}
         androidView="surface"
+        attributionPosition={{ bottom: 8, right: 8 }}
+        compass={false}
+        dragPan
         onPress={handleMapPress}
+        onRegionDidChange={handleRegionDidChange}
+        scaleBar={false}
+        touchPitch={false}
+        touchRotate={false}
+        touchZoom
       >
         <Camera
           ref={cameraRef}
@@ -150,7 +243,7 @@ export default function MapView({
           </Marker>
         ) : null}
 
-        {selectedPoint ? (
+        {selectedPoint && !centerSelectionEnabled ? (
           <Marker
             id="selected-location-marker"
             lngLat={[selectedPoint.longitude, selectedPoint.latitude]}
@@ -160,7 +253,16 @@ export default function MapView({
             </View>
           </Marker>
         ) : null}
-      </Map>
+      </MapLibreMap>
+
+      {centerSelectionEnabled ? (
+        <View pointerEvents="none" style={styles.centerPicker}>
+          <View style={styles.selectedLocationMarker}>
+            <View style={styles.selectedLocationDot} />
+          </View>
+          <View style={styles.centerPickerStem} />
+        </View>
+      ) : null}
 
       {showSelectedLabel && selectedPoint ? (
         <View style={styles.selectedLabel}>
@@ -246,6 +348,21 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     elevation: 2,
   },
+  centerPicker: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    marginLeft: -13,
+    marginTop: -18,
+    alignItems: 'center',
+  },
+  centerPickerStem: {
+    width: 3,
+    height: 12,
+    marginTop: -2,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
   selectedLabel: {
     position: 'absolute',
     left: 12,
@@ -275,9 +392,14 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 3,
     borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.16,
+    shadowRadius: 4,
+    elevation: 3,
   },
   selectedLocationDot: {
     width: 8,

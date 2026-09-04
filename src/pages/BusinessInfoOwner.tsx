@@ -112,14 +112,12 @@ const BUSINESS_TYPE_OPTIONS = [
   { label: 'Restaurant', value: 'Restaurant' },
   { label: 'Cafe', value: 'Cafe' },
   { label: 'Bakery', value: 'Bakery' },
-  { label: 'Food Truck', value: 'Food Truck' },
 ];
 
 const CITY_OPTIONS = [
   { label: 'Dubai', value: 'Dubai' },
   { label: 'Abu Dhabi', value: 'Abu Dhabi' },
   { label: 'Sharjah', value: 'Sharjah' },
-  { label: 'Ajman', value: 'Ajman' },
 ];
 
 const DAYS = [

@@ -1,18 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  ScrollView,
-  TextInput,
-  Pressable,
   Dimensions,
-  ViewStyle,
-  TextStyle,
-  KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { colors } from '../styles/theme';
 import { scale } from '../utils/responsive';
@@ -79,9 +78,7 @@ export default function Select({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && (
-        <Text style={[styles.label, labelStyle]}>{label}</Text>
-      )}
+      {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
 
       {/* Trigger */}
       <TouchableOpacity
@@ -107,20 +104,15 @@ export default function Select({
       <Modal
         visible={open}
         transparent
-        animationType={fullScreen ? 'slide' : 'fade'}
+        animationType="slide"
         statusBarTranslucent
         onRequestClose={handleClose}
       >
         {fullScreen ? (
           /* ── Full Screen ── */
           <View style={styles.fullScreenContainer}>
-            <ModalHeader
-              title={label || placeholder}
-              onClose={handleClose}
-            />
-            {searchable && (
-              <SearchBar query={query} onQueryChange={setQuery} />
-            )}
+            <ModalHeader title={label || placeholder} onClose={handleClose} />
+            {searchable && <SearchBar query={query} onQueryChange={setQuery} />}
             <OptionList
               data={filteredOptions}
               selectedValue={value}
@@ -129,19 +121,15 @@ export default function Select({
           </View>
         ) : (
           /* ── Bottom Sheet ── */
-          <KeyboardAvoidingView
-            style={styles.overlay}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
+          <View style={styles.overlay}>
             <Pressable style={styles.backdrop} onPress={handleClose} />
-            <View style={styles.sheet}>
+            <View
+              style={[styles.sheet, searchable ? styles.searchSheet : null]}
+            >
               {/* Drag handle */}
               <View style={styles.handle} />
 
-              <ModalHeader
-                title={label || placeholder}
-                onClose={handleClose}
-              />
+              <ModalHeader title={label || placeholder} onClose={handleClose} />
               {searchable && (
                 <SearchBar query={query} onQueryChange={setQuery} />
               )}
@@ -151,7 +139,7 @@ export default function Select({
                 onSelect={handleSelect}
               />
             </View>
-          </KeyboardAvoidingView>
+          </View>
         )}
       </Modal>
     </View>
@@ -160,20 +148,35 @@ export default function Select({
 
 /* ─── Sub-components ─────────────────────────────────────────────── */
 
-function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+function ModalHeader({
+  title,
+  onClose,
+}: {
+  title: string;
+  onClose: () => void;
+}) {
   return (
     <View style={headerStyles.row}>
       <Text style={headerStyles.title} numberOfLines={1}>
         {title}
       </Text>
-      <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+      <TouchableOpacity
+        onPress={onClose}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
         <Text style={headerStyles.closeText}>✕</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-function SearchBar({ query, onQueryChange }: { query: string; onQueryChange: (v: string) => void }) {
+function SearchBar({
+  query,
+  onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (v: string) => void;
+}) {
   return (
     <View style={searchStyles.wrapper}>
       <Text style={searchStyles.icon}>🔍</Text>
@@ -187,7 +190,10 @@ function SearchBar({ query, onQueryChange }: { query: string; onQueryChange: (v:
         clearButtonMode="while-editing"
       />
       {query.length > 0 && (
-        <TouchableOpacity onPress={() => onQueryChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          onPress={() => onQueryChange('')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Text style={searchStyles.clearIcon}>✕</Text>
         </TouchableOpacity>
       )}
@@ -206,7 +212,8 @@ function OptionList({
 }) {
   return (
     <ScrollView
-      keyboardShouldPersistTaps="handled"
+      style={listStyles.wrapper}
+      keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}
       contentContainerStyle={listStyles.content}
     >
@@ -216,19 +223,26 @@ function OptionList({
         data.map(item => {
           const isSelected = item.value === selectedValue;
           return (
-            <TouchableOpacity
+            <Pressable
               key={item.value}
-              activeOpacity={0.75}
-              style={[listStyles.option, isSelected && listStyles.optionSelected]}
+              android_ripple={{ color: colors.primaryLight }}
+              style={({ pressed }) => [
+                listStyles.option,
+                isSelected && listStyles.optionSelected,
+                pressed && listStyles.optionPressed,
+              ]}
               onPress={() => onSelect(item)}
             >
               <Text
-                style={[listStyles.optionText, isSelected && listStyles.optionTextSelected]}
+                style={[
+                  listStyles.optionText,
+                  isSelected && listStyles.optionTextSelected,
+                ]}
               >
                 {item.label}
               </Text>
               {isSelected && <Text style={listStyles.checkmark}>✓</Text>}
-            </TouchableOpacity>
+            </Pressable>
           );
         })
       )}
@@ -284,21 +298,25 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    flex: 1,
   },
 
   /* Bottom sheet */
   sheet: {
     backgroundColor: colors.screen,
-    
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    minHeight: Math.min(SCREEN_HEIGHT * 0.36, 280),
     maxHeight: SCREEN_HEIGHT * 0.72,
     paddingBottom: Platform.OS === 'ios' ? 32 : 50,
     overflow: 'hidden',
+    elevation: 8,
+  },
+  searchSheet: {
+    minHeight: Math.min(SCREEN_HEIGHT * 0.52, 420),
   },
   handle: {
     width: 40,
@@ -372,6 +390,9 @@ const searchStyles = StyleSheet.create({
 });
 
 const listStyles = StyleSheet.create({
+  wrapper: {
+    flexShrink: 1,
+  },
   content: {
     paddingHorizontal: 14,
     paddingBottom: 12,
@@ -387,6 +408,9 @@ const listStyles = StyleSheet.create({
   },
   optionSelected: {
     backgroundColor: colors.primaryLight,
+  },
+  optionPressed: {
+    backgroundColor: colors.surfaceMuted,
   },
   optionText: {
     fontSize: 15,

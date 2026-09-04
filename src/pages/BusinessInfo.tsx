@@ -562,7 +562,7 @@ export default function BusinessInfoSP({ route }: Props) {
               title={continueTitle}
               onPress={handleContinue}
               loading={loading}
-              style={showBack ? styles.footerButton : styles.footerButtonFull}
+              style={styles.footerButton}
             />
           </View>
         </View>
