@@ -329,7 +329,7 @@ const Loginform = ({
       <View>
         <InputText
           placeholder={'Enter Your Email'}
-          label={'Enter your email'}
+          label={'Email'}
           leftIcon={<EmailSvg />}
           value={email}
           onChangeText={onEmailChange}
@@ -339,7 +339,7 @@ const Loginform = ({
           error={emailError}
         />
         <InputText
-          placeholder={'Mypassword1&'}
+          placeholder={'Password'}
           label={'Password'}
           leftIcon={<LockSvg />}
           value={password}

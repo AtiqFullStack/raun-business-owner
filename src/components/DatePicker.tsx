@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -38,6 +39,7 @@ const MONTHS = [
 ];
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const YEAR_PAGE_SIZE = 12;
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -57,6 +59,9 @@ const parseDateValue = (value?: string) => {
   return new Date(year, month - 1, day);
 };
 
+const getYearPageStart = (year: number) =>
+  Math.floor(year / YEAR_PAGE_SIZE) * YEAR_PAGE_SIZE;
+
 export default function DatePicker({
   label,
   placeholder = 'Select Date',
@@ -68,9 +73,19 @@ export default function DatePicker({
 }: DatePickerProps) {
   const [visible, setVisible] = useState(false);
   const [viewDate, setViewDate] = useState(() => parseDateValue(value));
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [yearPageStart, setYearPageStart] = useState(() =>
+    getYearPageStart(parseDateValue(value).getFullYear()),
+  );
 
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
   const selectedValue = value || '';
+
+  const yearOptions = useMemo(
+    () =>
+      Array.from({ length: YEAR_PAGE_SIZE }, (_, index) => yearPageStart + index),
+    [yearPageStart],
+  );
 
   const dates = useMemo(() => {
     const year = viewDate.getFullYear();
@@ -96,6 +111,8 @@ export default function DatePicker({
     }
 
     setViewDate(parseDateValue(value));
+    setYearPageStart(getYearPageStart(parseDateValue(value).getFullYear()));
+    setShowYearPicker(false);
     setVisible(true);
   };
 
@@ -104,6 +121,16 @@ export default function DatePicker({
       current =>
         new Date(current.getFullYear(), current.getMonth() + offset, 1),
     );
+  };
+
+  const changeYearPage = (offset: number) => {
+    setYearPageStart(current => current + offset * YEAR_PAGE_SIZE);
+  };
+
+  const handleSelectYear = (year: number) => {
+    setViewDate(current => new Date(year, current.getMonth(), 1));
+    setYearPageStart(getYearPageStart(year));
+    setShowYearPicker(false);
   };
 
   const handleSelect = (date: Date) => {
@@ -148,61 +175,118 @@ export default function DatePicker({
               <TouchableOpacity
                 activeOpacity={0.75}
                 style={styles.navButton}
-                onPress={() => changeMonth(-1)}
+                onPress={() =>
+                  showYearPicker ? changeYearPage(-1) : changeMonth(-1)
+                }
               >
                 <Text style={styles.navButtonText}>{'<'}</Text>
               </TouchableOpacity>
-              <Text style={styles.monthTitle}>
-                {MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}
-              </Text>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={styles.monthTitleButton}
+                onPress={() => setShowYearPicker(current => !current)}
+              >
+                <Text style={styles.monthTitle}>
+                  {showYearPicker
+                    ? `${yearPageStart} - ${
+                        yearPageStart + YEAR_PAGE_SIZE - 1
+                      }`
+                    : `${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.75}
                 style={styles.navButton}
-                onPress={() => changeMonth(1)}
+                onPress={() =>
+                  showYearPicker ? changeYearPage(1) : changeMonth(1)
+                }
               >
                 <Text style={styles.navButtonText}>{'>'}</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.weekRow}>
-              {WEEK_DAYS.map(day => (
-                <Text key={day} style={styles.weekDay}>
-                  {day}
-                </Text>
-              ))}
-            </View>
+            {showYearPicker ? (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.yearGrid}
+              >
+                {yearOptions.map(year => {
+                  const isSelectedYear =
+                    selectedValue && year === selectedDate.getFullYear();
+                  const isViewedYear = year === viewDate.getFullYear();
 
-            <View style={styles.calendarGrid}>
-              {dates.map((date, index) => {
-                if (!date) {
-                  return <View key={`empty-${index}`} style={styles.dayCell} />;
-                }
-
-                const dateValue = toDateValue(date);
-                const isSelected = dateValue === toDateValue(selectedDate);
-
-                return (
-                  <TouchableOpacity
-                    key={dateValue}
-                    activeOpacity={0.75}
-                    style={[
-                      styles.dayCell,
-                      isSelected && selectedValue && styles.dayCellSelected,
-                    ]}
-                    onPress={() => handleSelect(date)}
-                  >
-                    <Text
+                  return (
+                    <TouchableOpacity
+                      key={year}
+                      activeOpacity={0.75}
                       style={[
-                        styles.dayText,
-                        isSelected && selectedValue && styles.dayTextSelected,
+                        styles.yearCell,
+                        isViewedYear ? styles.yearCellViewed : null,
+                        isSelectedYear ? styles.yearCellSelected : null,
                       ]}
+                      onPress={() => handleSelectYear(year)}
                     >
-                      {date.getDate()}
+                      <Text
+                        style={[
+                          styles.yearText,
+                          isSelectedYear ? styles.yearTextSelected : null,
+                        ]}
+                      >
+                        {year}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <>
+                <View style={styles.weekRow}>
+                  {WEEK_DAYS.map(day => (
+                    <Text key={day} style={styles.weekDay}>
+                      {day}
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                  ))}
+                </View>
+
+                <View style={styles.calendarGrid}>
+                  {dates.map((date, index) => {
+                    if (!date) {
+                      return (
+                        <View key={`empty-${index}`} style={styles.dayCell} />
+                      );
+                    }
+
+                    const dateValue = toDateValue(date);
+                    const isSelected = dateValue === toDateValue(selectedDate);
+
+                    return (
+                      <TouchableOpacity
+                        key={dateValue}
+                        activeOpacity={0.75}
+                        style={[
+                          styles.dayCell,
+                          isSelected && selectedValue
+                            ? styles.dayCellSelected
+                            : null,
+                        ]}
+                        onPress={() => handleSelect(date)}
+                      >
+                        <Text
+                          style={[
+                            styles.dayText,
+                            isSelected && selectedValue
+                              ? styles.dayTextSelected
+                              : null,
+                          ]}
+                        >
+                          {date.getDate()}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
             <TouchableOpacity
               activeOpacity={0.75}
@@ -293,6 +377,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  monthTitleButton: {
+    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   weekRow: {
     flexDirection: 'row',
     marginBottom: 8,
@@ -324,6 +414,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayTextSelected: {
+    color: colors.textLight,
+  },
+  yearGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingBottom: 8,
+    paddingTop: 2,
+  },
+  yearCell: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    marginBottom: 10,
+    marginHorizontal: '1.5%',
+    width: '30.33%',
+  },
+  yearCellViewed: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  yearCellSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  yearText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  yearTextSelected: {
     color: colors.textLight,
   },
   cancelButton: {

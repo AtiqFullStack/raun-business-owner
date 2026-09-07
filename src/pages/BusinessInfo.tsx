@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import {
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../styles/theme';
 import { scale } from '../utils/responsive';
@@ -38,6 +47,10 @@ interface ProfileForm {
   languages: string[];
   profilePhoto: UploadFile | null;
 }
+
+type ProfileFormErrors = Partial<
+  Record<keyof Omit<ProfileForm, 'language'>, string>
+>;
 
 interface WorkExperienceEntry {
   id: string;
@@ -156,6 +169,32 @@ const buildOwnerUser = (owner: BusinessOwner) => ({
   },
 });
 
+const isBlank = (value: string) => value.trim() === '';
+
+const validateProfile = (form: ProfileForm) => {
+  const errors: ProfileFormErrors = {};
+
+  if (!form.profilePhoto) {
+    errors.profilePhoto = 'Please upload profile photo.';
+  }
+  if (isBlank(form.fullName)) {
+    errors.fullName = 'Please enter full name.';
+  }
+  if (isBlank(form.professionalTitle)) {
+    errors.professionalTitle = 'Please enter professional title.';
+  }
+  if (isBlank(form.bio)) {
+    errors.bio = 'Please enter about / bio.';
+  }
+  if (form.languages.length === 0) {
+    errors.languages = 'Please select at least one language.';
+  }
+
+  return errors;
+};
+
+const hasErrors = (errors: object) => Object.keys(errors).length > 0;
+
 /* ─── Main Screen ────────────────────────────────────────────────── */
 export default function BusinessInfoSP({ route }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>(
@@ -182,6 +221,7 @@ export default function BusinessInfoSP({ route }: Props) {
     languages: [],
     profilePhoto: null,
   });
+  const [profileErrors, setProfileErrors] = useState<ProfileFormErrors>({});
 
   /* Step 2 */
   const [workForm, setWorkForm] = useState<WorkExperienceForm>({
@@ -218,7 +258,16 @@ export default function BusinessInfoSP({ route }: Props) {
           type: asset.type,
         },
       }));
+      setProfileErrors(prev => ({ ...prev, profilePhoto: undefined }));
     }
+  };
+
+  const updateProfileField = (
+    field: Exclude<keyof ProfileForm, 'profilePhoto' | 'languages'>,
+    value: string,
+  ) => {
+    setProfile(prev => ({ ...prev, [field]: value }));
+    setProfileErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
   /* ── Work experience ── */
@@ -296,43 +345,49 @@ export default function BusinessInfoSP({ route }: Props) {
       workingAreas: prev.workingAreas.filter(area => area.id !== id),
     }));
 
-  const addLanguage = (value: string) => {
+  const toggleLanguage = (value: string) => {
     const languageLabel =
       languages.find(language => language.value === value)?.label || value;
 
     setProfile(prev => ({
       ...prev,
-      language: value,
       languages: prev.languages.includes(languageLabel)
-        ? prev.languages
+        ? prev.languages.filter(language => language !== languageLabel)
         : [...prev.languages, languageLabel],
+      language:
+        prev.languages.includes(languageLabel) && prev.language === value
+          ? ''
+          : value,
     }));
+    setProfileErrors(prev => ({ ...prev, languages: undefined }));
   };
 
   const removeLanguage = (value: string) => {
     setProfile(prev => ({
       ...prev,
       languages: prev.languages.filter(language => language !== value),
+      language:
+        languages.find(language => language.label === value)?.value ===
+        prev.language
+          ? ''
+          : prev.language,
     }));
   };
 
   const handleProfileSubmit = async () => {
     const authDraft = route.params?.authDraft;
+    const validationErrors = validateProfile(profile);
+
+    setProfileErrors(validationErrors);
+
+    if (hasErrors(validationErrors)) {
+      showToast('Please complete your profile details.', 'error');
+      return;
+    }
 
     if (!authDraft?.email || !authDraft.password) {
       showToast('Please login again before completing onboarding.', 'error');
       navigate('login');
-      return;
-    }
-
-    if (
-      !profile.profilePhoto ||
-      !profile.fullName ||
-      !profile.professionalTitle ||
-      !profile.bio ||
-      profile.languages.length === 0
-    ) {
-      showToast('Please complete your profile details.', 'error');
       return;
     }
 
@@ -512,10 +567,9 @@ export default function BusinessInfoSP({ route }: Props) {
           {currentStep === 1 && (
             <ProfileInfoStep
               form={profile}
-              onFormChange={(field, value) =>
-                setProfile(prev => ({ ...prev, [field]: value }))
-              }
-              onLanguageSelect={addLanguage}
+              errors={profileErrors}
+              onFormChange={updateProfileField}
+              onLanguageToggle={toggleLanguage}
               onRemoveLanguage={removeLanguage}
               onPickProfilePhoto={() => openPicker('profilePhoto')}
             />
@@ -574,19 +628,21 @@ export default function BusinessInfoSP({ route }: Props) {
 /* ─── Step 1: Profile Info ───────────────────────────────────────── */
 interface ProfileInfoStepProps {
   form: ProfileForm;
+  errors: ProfileFormErrors;
   onFormChange: (
     field: Exclude<keyof ProfileForm, 'profilePhoto' | 'languages'>,
     value: string,
   ) => void;
-  onLanguageSelect: (value: string) => void;
+  onLanguageToggle: (value: string) => void;
   onRemoveLanguage: (value: string) => void;
   onPickProfilePhoto: () => void;
 }
 
 function ProfileInfoStep({
   form,
+  errors,
   onFormChange,
-  onLanguageSelect,
+  onLanguageToggle,
   onRemoveLanguage,
   onPickProfilePhoto,
 }: ProfileInfoStepProps) {
@@ -599,6 +655,7 @@ function ProfileInfoStep({
           style={[
             styles.profilePhotoPicker,
             form.profilePhoto ? styles.profilePhotoPickerFilled : null,
+            errors.profilePhoto ? styles.profilePhotoPickerError : null,
           ]}
         >
           {form.profilePhoto ? (
@@ -610,6 +667,9 @@ function ProfileInfoStep({
             <CameraSvg />
           )}
         </TouchableOpacity>
+        {errors.profilePhoto ? (
+          <Text style={styles.profilePhotoError}>{errors.profilePhoto}</Text>
+        ) : null}
       </View>
 
       <InputText
@@ -618,6 +678,7 @@ function ProfileInfoStep({
         value={form.fullName}
         onChangeText={val => onFormChange('fullName', val)}
         containerStyle={styles.inputSpacing}
+        error={errors.fullName}
       />
       <InputText
         label="Professional Title"
@@ -625,6 +686,7 @@ function ProfileInfoStep({
         value={form.professionalTitle}
         onChangeText={val => onFormChange('professionalTitle', val)}
         containerStyle={styles.inputSpacing}
+        error={errors.professionalTitle}
       />
       <InputText
         label="About / Bio"
@@ -634,14 +696,15 @@ function ProfileInfoStep({
         multiline
         numberOfLines={4}
         inputStyle={styles.bioInput}
+        error={errors.bio}
       />
-      <Select
+      <LanguageMultiSelect
         label="Language Spoken"
         options={languages}
         placeholder="Select Language"
-        value={form.language}
-        onChange={onLanguageSelect}
-        searchable
+        selectedLabels={form.languages}
+        onToggle={onLanguageToggle}
+        error={errors.languages}
       />
       {form.languages.length > 0 && (
         <View style={styles.chipRow}>
@@ -657,6 +720,123 @@ function ProfileInfoStep({
           ))}
         </View>
       )}
+    </View>
+  );
+}
+
+function LanguageMultiSelect({
+  label,
+  options,
+  placeholder,
+  selectedLabels,
+  onToggle,
+  error,
+}: {
+  label: string;
+  options: typeof languages;
+  placeholder: string;
+  selectedLabels: string[];
+  onToggle: (value: string) => void;
+  error?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  const selectedText =
+    selectedLabels.length === 0
+      ? placeholder
+      : selectedLabels.length === 1
+      ? selectedLabels[0]
+      : selectedLabels.join(', ');
+
+  return (
+    <View style={styles.languageSelectWrapper}>
+      <Text style={styles.languageSelectLabel}>{label}</Text>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[
+          styles.languageTrigger,
+          error ? styles.languageTriggerError : null,
+        ]}
+        onPress={() => setVisible(true)}
+      >
+        <Text
+          style={[
+            styles.languageTriggerText,
+            selectedLabels.length === 0 ? styles.languagePlaceholder : null,
+          ]}
+          numberOfLines={1}
+        >
+          {selectedText}
+        </Text>
+        <Text style={styles.languageChevron}>▼</Text>
+      </TouchableOpacity>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setVisible(false)}
+      >
+        <View style={styles.languageOverlay}>
+          <Pressable
+            style={styles.languageBackdrop}
+            onPress={() => setVisible(false)}
+          />
+          <View style={styles.languageSheet}>
+            <View style={styles.languageHandle} />
+            <View style={styles.languageHeader}>
+              <Text style={styles.languageTitle}>{label}</Text>
+              <TouchableOpacity
+                onPress={() => setVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.languageClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.languageList}
+            >
+              {options.map(option => {
+                const selected = selectedLabels.includes(option.label);
+
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    activeOpacity={0.75}
+                    style={styles.languageOption}
+                    onPress={() => onToggle(option.value)}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        selected ? styles.checkboxChecked : null,
+                      ]}
+                    >
+                      {selected ? (
+                        <Text style={styles.checkboxTick}>✓</Text>
+                      ) : null}
+                    </View>
+                    <Text style={styles.languageOptionText}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              activeOpacity={0.75}
+              style={styles.languageDoneButton}
+              onPress={() => setVisible(false)}
+            >
+              <Text style={styles.languageDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1093,6 +1273,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
+  errorText: {
+    color: colors.error,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+  },
 
   /* Profile photo */
   profilePhotoContainer: {
@@ -1115,6 +1301,16 @@ const styles = StyleSheet.create({
   profilePhotoPickerFilled: {
     borderStyle: 'solid',
     borderColor: colors.secondary,
+  },
+  profilePhotoPickerError: {
+    borderColor: colors.error,
+  },
+  profilePhotoError: {
+    color: colors.error,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 8,
+    textAlign: 'center',
   },
   profilePhotoImage: {
     width: '100%',
@@ -1190,6 +1386,116 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 12,
     fontWeight: '600',
+  },
+  languageSelectWrapper: {
+    marginBottom: 12,
+  },
+  languageSelectLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  languageTrigger: {
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    height: scale(48),
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+  },
+  languageTriggerError: {
+    borderColor: colors.error,
+  },
+  languageTriggerText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+  },
+  languagePlaceholder: {
+    color: colors.placeholder,
+  },
+  languageChevron: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginLeft: 8,
+  },
+  languageOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  languageBackdrop: {
+    flex: 1,
+  },
+  languageSheet: {
+    backgroundColor: colors.screen,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '72%',
+    paddingBottom: 28,
+  },
+  languageHandle: {
+    alignSelf: 'center',
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    height: 4,
+    marginBottom: 4,
+    marginTop: 12,
+    width: 40,
+  },
+  languageHeader: {
+    alignItems: 'center',
+    borderBottomColor: colors.divider,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  languageTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    marginRight: 12,
+  },
+  languageClose: {
+    color: colors.textMuted,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  languageList: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  languageOption: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 13,
+  },
+  languageOptionText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  languageDoneButton: {
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    marginHorizontal: 20,
+    marginTop: 6,
+    paddingVertical: 13,
+  },
+  languageDoneText: {
+    color: colors.textLight,
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   /* Cards */

@@ -68,6 +68,13 @@ type DocumentForm = {
   idProof: UploadFile | null;
 };
 
+type BusinessFormErrors = Partial<Record<keyof BusinessForm, string>>;
+type LocationFormErrors = Partial<Record<keyof LocationForm, string>>;
+type HoursFormErrors = Partial<
+  Record<string, Partial<Record<'openTime' | 'closeTime', string>>>
+>;
+type DocumentFormErrors = Partial<Record<keyof DocumentForm, string>>;
+
 const buildOwnerUser = (owner: BusinessOwner) => ({
   id: owner._id,
   name: owner.email,
@@ -161,6 +168,96 @@ const DEFAULT_HOURS: Record<string, DayHours> = {
   SUNDAY: { enabled: false, openTime: '', closeTime: '' },
 };
 
+const isBlank = (value: string) => value.trim() === '';
+
+const validateBusinessDetails = (form: BusinessForm) => {
+  const errors: BusinessFormErrors = {};
+
+  if (!form.businessPhoto) {
+    errors.businessPhoto = 'Please upload a business photo.';
+  }
+  if (isBlank(form.businessName)) {
+    errors.businessName = 'Please enter business name.';
+  }
+  if (isBlank(form.cuisineType)) {
+    errors.cuisineType = 'Please select cuisine type.';
+  }
+  if (isBlank(form.businessType)) {
+    errors.businessType = 'Please select business type.';
+  }
+
+  return errors;
+};
+
+const validateLocationDetails = (form: LocationForm) => {
+  const errors: LocationFormErrors = {};
+
+  if (isBlank(form.address)) {
+    errors.address = 'Please enter complete address.';
+  }
+  if (isBlank(form.area)) {
+    errors.area = 'Please enter area.';
+  }
+  if (isBlank(form.city)) {
+    errors.city = 'Please select city.';
+  }
+  if (isBlank(form.pinCode)) {
+    errors.pinCode = 'Please enter pin code.';
+  }
+  if (!form.coordinates) {
+    errors.coordinates = 'Please select location on map.';
+  }
+
+  return errors;
+};
+
+const validateBusinessHours = (businessHours: Record<string, DayHours>) => {
+  const errors: HoursFormErrors = {};
+  const hasOpenDay = DAYS.some(day => businessHours[day].enabled);
+
+  DAYS.forEach(day => {
+    const dayHours = businessHours[day];
+
+    if (!dayHours.enabled) return;
+
+    const dayErrors: Partial<Record<'openTime' | 'closeTime', string>> = {};
+
+    if (isBlank(dayHours.openTime)) {
+      dayErrors.openTime = 'Opening time required.';
+    }
+    if (isBlank(dayHours.closeTime)) {
+      dayErrors.closeTime = 'Closing time required.';
+    }
+
+    if (Object.keys(dayErrors).length > 0) {
+      errors[day] = dayErrors;
+    }
+  });
+
+  return {
+    errors,
+    message: hasOpenDay ? '' : 'Please keep at least one business day open.',
+  };
+};
+
+const validateDocuments = (form: DocumentForm) => {
+  const errors: DocumentFormErrors = {};
+
+  if (!form.tradeLicense) {
+    errors.tradeLicense = 'Please upload trade license.';
+  }
+  if (!form.fssaiCertificate) {
+    errors.fssaiCertificate = 'Please upload FSSAI certificate.';
+  }
+  if (!form.idProof) {
+    errors.idProof = 'Please upload ID proof.';
+  }
+
+  return errors;
+};
+
+const hasErrors = (errors: object) => Object.keys(errors).length > 0;
+
 export default function BusinessInfoOwner({ route }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>(
     route.params?.initialStep || 1,
@@ -183,6 +280,7 @@ export default function BusinessInfoOwner({ route }: Props) {
     cuisineType: '',
     businessType: '',
   });
+  const [businessErrors, setBusinessErrors] = useState<BusinessFormErrors>({});
 
   const [locationForm, setLocationForm] = useState<LocationForm>({
     address: '',
@@ -191,8 +289,11 @@ export default function BusinessInfoOwner({ route }: Props) {
     pinCode: '',
     coordinates: null,
   });
+  const [locationErrors, setLocationErrors] = useState<LocationFormErrors>({});
 
   const [hours, setHours] = useState<Record<string, DayHours>>(DEFAULT_HOURS);
+  const [hoursErrors, setHoursErrors] = useState<HoursFormErrors>({});
+  const [hoursMessage, setHoursMessage] = useState('');
   const [timePicker, setTimePicker] = useState<{
     visible: boolean;
     day: string;
@@ -204,6 +305,7 @@ export default function BusinessInfoOwner({ route }: Props) {
     fssaiCertificate: null,
     idProof: null,
   });
+  const [documentErrors, setDocumentErrors] = useState<DocumentFormErrors>({});
 
   const openPicker = (target: PickerTarget) => {
     setPickerTarget(target);
@@ -223,9 +325,32 @@ export default function BusinessInfoOwner({ route }: Props) {
 
     if (pickerTarget === 'businessPhoto') {
       setBusinessForm(prev => ({ ...prev, businessPhoto: selectedFile }));
+      setBusinessErrors(prev => ({ ...prev, businessPhoto: undefined }));
     } else {
       setDocuments(prev => ({ ...prev, [pickerTarget]: selectedFile }));
+      setDocumentErrors(prev => ({ ...prev, [pickerTarget]: undefined }));
     }
+  };
+
+  const updateBusinessField = (
+    field: Exclude<keyof BusinessForm, 'businessPhoto'>,
+    value: string,
+  ) => {
+    setBusinessForm(prev => ({ ...prev, [field]: value }));
+    setBusinessErrors(prev => ({ ...prev, [field]: undefined }));
+  };
+
+  const updateLocationField = (
+    field: Exclude<keyof LocationForm, 'coordinates'>,
+    value: string,
+  ) => {
+    setLocationForm(prev => ({ ...prev, [field]: value }));
+    setLocationErrors(prev => ({ ...prev, [field]: undefined }));
+  };
+
+  const updateLocationCoordinates = (coordinates: MapCoordinates) => {
+    setLocationForm(prev => ({ ...prev, coordinates }));
+    setLocationErrors(prev => ({ ...prev, coordinates: undefined }));
   };
 
   const buildBusinessHoursPayload = (): BusinessHourPayload[] =>
@@ -243,6 +368,19 @@ export default function BusinessInfoOwner({ route }: Props) {
 
   const handleBusinessAuthSubmit = async () => {
     const authDraft = route.params?.authDraft;
+    const businessValidationErrors = validateBusinessDetails(businessForm);
+    const locationValidationErrors = validateLocationDetails(locationForm);
+
+    setBusinessErrors(businessValidationErrors);
+    setLocationErrors(locationValidationErrors);
+
+    if (
+      hasErrors(businessValidationErrors) ||
+      hasErrors(locationValidationErrors)
+    ) {
+      showToast('Please complete all business and location details.', 'error');
+      return;
+    }
 
     if (!authDraft?.email || !authDraft.password) {
       showToast('Please login again before completing onboarding.', 'error');
@@ -315,6 +453,19 @@ export default function BusinessInfoOwner({ route }: Props) {
   };
 
   const handleHoursSubmit = async () => {
+    const validation = validateBusinessHours(hours);
+
+    setHoursErrors(validation.errors);
+    setHoursMessage(validation.message);
+
+    if (hasErrors(validation.errors) || validation.message) {
+      showToast(
+        validation.message || 'Please complete your business hours.',
+        'error',
+      );
+      return;
+    }
+
     try {
       clearError();
       const response = await updateBusinessHours(buildBusinessHoursPayload());
@@ -338,11 +489,11 @@ export default function BusinessInfoOwner({ route }: Props) {
   };
 
   const handleDocumentsSubmit = async () => {
-    if (
-      !documents.tradeLicense ||
-      !documents.fssaiCertificate ||
-      !documents.idProof
-    ) {
+    const validationErrors = validateDocuments(documents);
+
+    setDocumentErrors(validationErrors);
+
+    if (hasErrors(validationErrors)) {
       showToast('Please upload all required documents.', 'error');
       return;
     }
@@ -368,6 +519,14 @@ export default function BusinessInfoOwner({ route }: Props) {
 
   const handleContinue = () => {
     if (currentStep === 1) {
+      const validationErrors = validateBusinessDetails(businessForm);
+      setBusinessErrors(validationErrors);
+
+      if (hasErrors(validationErrors)) {
+        showToast('Please complete business details.', 'error');
+        return;
+      }
+
       setCurrentStep(2);
       return;
     }
@@ -390,6 +549,8 @@ export default function BusinessInfoOwner({ route }: Props) {
       ...prev,
       [day]: { ...prev[day], enabled: !prev[day].enabled },
     }));
+    setHoursErrors(prev => ({ ...prev, [day]: undefined }));
+    setHoursMessage('');
   };
 
   const setTime = (time: string) => {
@@ -400,6 +561,14 @@ export default function BusinessInfoOwner({ route }: Props) {
         [timePicker.field]: time,
       },
     }));
+    setHoursErrors(prev => ({
+      ...prev,
+      [timePicker.day]: {
+        ...prev[timePicker.day],
+        [timePicker.field]: undefined,
+      },
+    }));
+    setHoursMessage('');
     setTimePicker({ visible: false, day: '', field: 'openTime' });
   };
 
@@ -429,9 +598,8 @@ export default function BusinessInfoOwner({ route }: Props) {
           {currentStep === 1 && (
             <BusinessDetailsStep
               form={businessForm}
-              onFormChange={(field, value) =>
-                setBusinessForm(prev => ({ ...prev, [field]: value }))
-              }
+              errors={businessErrors}
+              onFormChange={updateBusinessField}
               onPickPhoto={() => openPicker('businessPhoto')}
             />
           )}
@@ -439,18 +607,17 @@ export default function BusinessInfoOwner({ route }: Props) {
           {currentStep === 2 && (
             <LocationDetailsStep
               form={locationForm}
-              onFormChange={(field, value) =>
-                setLocationForm(prev => ({ ...prev, [field]: value }))
-              }
-              onCoordinatesChange={coordinates =>
-                setLocationForm(prev => ({ ...prev, coordinates }))
-              }
+              errors={locationErrors}
+              onFormChange={updateLocationField}
+              onCoordinatesChange={updateLocationCoordinates}
             />
           )}
 
           {currentStep === 3 && (
             <BusinessHoursStep
               hours={hours}
+              errors={hoursErrors}
+              screenError={hoursMessage}
               onToggleDay={toggleDay}
               onOpenTimePicker={(day, field) =>
                 setTimePicker({ visible: true, day, field })
@@ -459,7 +626,11 @@ export default function BusinessInfoOwner({ route }: Props) {
           )}
 
           {currentStep === 4 && (
-            <DocumentsStep documents={documents} onPickDocument={openPicker} />
+            <DocumentsStep
+              documents={documents}
+              errors={documentErrors}
+              onPickDocument={openPicker}
+            />
           )}
 
           <Button
@@ -524,38 +695,50 @@ function UploadBox({
   uri,
   onPress,
   large = false,
+  error,
 }: {
   label: string;
   uri?: string | null;
   onPress: () => void;
   large?: boolean;
+  error?: string;
 }) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      style={[styles.uploadBox, large && styles.photoUploadBox]}
-      onPress={onPress}
-    >
-      {uri ? (
-        <Image source={{ uri }} style={styles.uploadPreview} />
-      ) : (
-        <View style={styles.uploadPlaceholder}>
-          <View style={styles.uploadIconCircle}>
-            <CameraSvg width={15} height={13} color={colors.textLight} />
+    <View>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[
+          styles.uploadBox,
+          large && styles.photoUploadBox,
+          error ? styles.uploadBoxError : null,
+          error ? styles.uploadBoxErrorSpacing : null,
+        ]}
+        onPress={onPress}
+      >
+        {uri ? (
+          <Image source={{ uri }} style={styles.uploadPreview} />
+        ) : (
+          <View style={styles.uploadPlaceholder}>
+            <View style={styles.uploadIconCircle}>
+              <CameraSvg width={15} height={13} color={colors.textLight} />
+            </View>
+            <Text style={styles.uploadLabel}>{label}</Text>
           </View>
-          <Text style={styles.uploadLabel}>{label}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
   );
 }
 
 function BusinessDetailsStep({
   form,
+  errors,
   onFormChange,
   onPickPhoto,
 }: {
   form: BusinessForm;
+  errors: BusinessFormErrors;
   onFormChange: (
     field: Exclude<keyof BusinessForm, 'businessPhoto'>,
     value: string,
@@ -569,6 +752,7 @@ function BusinessDetailsStep({
         label="Photos"
         uri={form.businessPhoto?.uri}
         onPress={onPickPhoto}
+        error={errors.businessPhoto}
         large
       />
 
@@ -580,6 +764,7 @@ function BusinessDetailsStep({
         containerStyle={styles.fieldSpacing}
         labelStyle={styles.compactLabel}
         inputStyle={styles.inputText}
+        error={errors.businessName}
       />
       <Select
         label="Cuisine Type"
@@ -589,6 +774,7 @@ function BusinessDetailsStep({
         onChange={value => onFormChange('cuisineType', value)}
         containerStyle={styles.fieldSpacing}
         labelStyle={styles.compactLabel}
+        error={errors.cuisineType}
       />
       <Select
         label="Business Type"
@@ -598,6 +784,7 @@ function BusinessDetailsStep({
         onChange={value => onFormChange('businessType', value)}
         containerStyle={styles.fieldSpacing}
         labelStyle={styles.compactLabel}
+        error={errors.businessType}
       />
     </View>
   );
@@ -605,10 +792,12 @@ function BusinessDetailsStep({
 
 function LocationDetailsStep({
   form,
+  errors,
   onFormChange,
   onCoordinatesChange,
 }: {
   form: LocationForm;
+  errors: LocationFormErrors;
   onFormChange: (
     field: Exclude<keyof LocationForm, 'coordinates'>,
     value: string,
@@ -625,6 +814,7 @@ function LocationDetailsStep({
         containerStyle={styles.inputField}
         labelStyle={styles.compactLabel}
         inputStyle={styles.inputText}
+        error={errors.address}
       />
       <InputText
         label="Area"
@@ -634,6 +824,7 @@ function LocationDetailsStep({
         containerStyle={styles.inputField}
         labelStyle={styles.compactLabel}
         inputStyle={styles.inputText}
+        error={errors.area}
       />
       <View style={styles.locationRow}>
         <View style={styles.locationHalf}>
@@ -644,6 +835,7 @@ function LocationDetailsStep({
             value={form.city}
             onChange={value => onFormChange('city', value)}
             labelStyle={styles.compactLabel}
+            error={errors.city}
           />
         </View>
         <View style={styles.locationHalf}>
@@ -655,60 +847,88 @@ function LocationDetailsStep({
             keyboardType="number-pad"
             labelStyle={styles.compactLabel}
             inputStyle={styles.inputText}
+            error={errors.pinCode}
           />
         </View>
       </View>
 
-      <View style={styles.mapBox}>
+      <View
+        style={[styles.mapBox, errors.coordinates ? styles.mapBoxError : null]}
+      >
         <MapView
           selectedCoordinates={form.coordinates}
           onSelectCoordinates={onCoordinatesChange}
           showSelectedLabel
         />
       </View>
+      {errors.coordinates && (
+        <Text style={styles.errorText}>{errors.coordinates}</Text>
+      )}
     </View>
   );
 }
 
 function BusinessHoursStep({
   hours,
+  errors,
+  screenError,
   onToggleDay,
   onOpenTimePicker,
 }: {
   hours: Record<string, DayHours>;
+  errors: HoursFormErrors;
+  screenError: string;
   onToggleDay: (day: string) => void;
   onOpenTimePicker: (day: string, field: 'openTime' | 'closeTime') => void;
 }) {
   return (
     <View style={styles.hoursList}>
+      {screenError ? <Text style={styles.errorText}>{screenError}</Text> : null}
       {DAYS.map(day => {
         const config = hours[day];
+        const dayErrors = errors[day];
+        const dayError =
+          dayErrors?.openTime && dayErrors?.closeTime
+            ? 'Opening and closing time required.'
+            : dayErrors?.openTime || dayErrors?.closeTime;
+
         return (
-          <View key={day} style={styles.dayRow}>
-            <Text style={styles.dayName}>{day}</Text>
-            <TouchableOpacity
-              activeOpacity={0.75}
-              style={styles.timeBox}
-              onPress={() => onOpenTimePicker(day, 'openTime')}
-            >
-              <Text style={styles.timeText}>{config.openTime}</Text>
-            </TouchableOpacity>
-            <Text style={styles.timeSeparator}>to</Text>
-            <TouchableOpacity
-              activeOpacity={0.75}
-              style={styles.timeBox}
-              onPress={() => onOpenTimePicker(day, 'closeTime')}
-            >
-              <Text style={styles.timeText}>{config.closeTime}</Text>
-            </TouchableOpacity>
-            <Switch
-              value={config.enabled}
-              onValueChange={() => onToggleDay(day)}
-              trackColor={{ false: colors.borderDark, true: colors.primary }}
-              thumbColor={colors.textLight}
-              ios_backgroundColor={colors.borderDark}
-              style={styles.switch}
-            />
+          <View key={day} style={styles.dayBlock}>
+            <View style={styles.dayRow}>
+              <Text style={styles.dayName}>{day}</Text>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={[
+                  styles.timeBox,
+                  dayErrors?.openTime ? styles.timeBoxError : null,
+                ]}
+                onPress={() => onOpenTimePicker(day, 'openTime')}
+              >
+                <Text style={styles.timeText}>{config.openTime}</Text>
+              </TouchableOpacity>
+              <Text style={styles.timeSeparator}>to</Text>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={[
+                  styles.timeBox,
+                  dayErrors?.closeTime ? styles.timeBoxError : null,
+                ]}
+                onPress={() => onOpenTimePicker(day, 'closeTime')}
+              >
+                <Text style={styles.timeText}>{config.closeTime}</Text>
+              </TouchableOpacity>
+              <Switch
+                value={config.enabled}
+                onValueChange={() => onToggleDay(day)}
+                trackColor={{ false: colors.borderDark, true: colors.primary }}
+                thumbColor={colors.textLight}
+                ios_backgroundColor={colors.borderDark}
+                style={styles.switch}
+              />
+            </View>
+            {dayError ? (
+              <Text style={styles.dayErrorText}>{dayError}</Text>
+            ) : null}
           </View>
         );
       })}
@@ -718,9 +938,11 @@ function BusinessHoursStep({
 
 function DocumentsStep({
   documents,
+  errors,
   onPickDocument,
 }: {
   documents: DocumentForm;
+  errors: DocumentFormErrors;
   onPickDocument: (target: PickerTarget) => void;
 }) {
   return (
@@ -730,6 +952,7 @@ function DocumentsStep({
         label="Upload"
         uri={documents.tradeLicense?.uri}
         onPress={() => onPickDocument('tradeLicense')}
+        error={errors.tradeLicense}
       />
 
       <Text style={styles.fieldLabel}>FSSAI Certificate</Text>
@@ -737,6 +960,7 @@ function DocumentsStep({
         label="Upload"
         uri={documents.fssaiCertificate?.uri}
         onPress={() => onPickDocument('fssaiCertificate')}
+        error={errors.fssaiCertificate}
       />
 
       <Text style={styles.fieldLabel}>ID Proof</Text>
@@ -744,6 +968,7 @@ function DocumentsStep({
         label="Upload"
         uri={documents.idProof?.uri}
         onPress={() => onPickDocument('idProof')}
+        error={errors.idProof}
       />
     </View>
   );
@@ -798,6 +1023,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 8,
   },
+  errorText: {
+    color: colors.error,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+    marginBottom: 14,
+  },
   compactLabel: {
     color: colors.textDark,
     fontSize: 12,
@@ -824,6 +1056,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 22,
     overflow: 'hidden',
+  },
+  uploadBoxError: {
+    borderColor: colors.error,
+  },
+  uploadBoxErrorSpacing: {
+    marginBottom: 0,
   },
   photoUploadBox: {
     height: scale(94),
@@ -865,8 +1103,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     position: 'relative',
   },
+  mapBoxError: {
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
   hoursList: {
     paddingTop: 18,
+  },
+  dayBlock: {
+    marginBottom: 4,
   },
   dayRow: {
     minHeight: 52,
@@ -889,9 +1134,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
+  timeBoxError: {
+    borderColor: colors.error,
+  },
   timeText: {
     color: colors.textMuted,
     fontSize: 11,
+  },
+  dayErrorText: {
+    color: colors.error,
+    fontSize: 11,
+    lineHeight: 14,
+    marginLeft: 0,
+    marginTop: -2,
+    marginBottom: 6,
   },
   timeSeparator: {
     width: 22,
