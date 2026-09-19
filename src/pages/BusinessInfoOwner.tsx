@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -107,19 +107,6 @@ const STEP_META: Record<Step, { title: string; subtitle: string }> = {
     subtitle: 'Upload Your Documents',
   },
 };
-
-const CUISINE_OPTIONS = [
-  { label: 'Indian', value: 'Indian' },
-  { label: 'Arabic', value: 'Arabic' },
-  { label: 'Italian', value: 'Italian' },
-  { label: 'Chinese', value: 'Chinese' },
-];
-
-const BUSINESS_TYPE_OPTIONS = [
-  { label: 'Restaurant', value: 'Restaurant' },
-  { label: 'Cafe', value: 'Cafe' },
-  { label: 'Bakery', value: 'Bakery' },
-];
 
 const CITY_OPTIONS = [
   { label: 'Dubai', value: 'Dubai' },
@@ -268,6 +255,7 @@ export default function BusinessInfoOwner({ route }: Props) {
   const showToast = useToast(state => state.showToast);
   const {
     authenticateOwner,
+    getBusinessAndCuisineTypes,
     updateBusinessHours,
     updateBusinessDocuments,
     loading,
@@ -281,6 +269,49 @@ export default function BusinessInfoOwner({ route }: Props) {
     businessType: '',
   });
   const [businessErrors, setBusinessErrors] = useState<BusinessFormErrors>({});
+  const [cuisineOptions, setCuisineOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [businessTypeOptions, setBusinessTypeOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+
+  useEffect(() => {
+    const loadBusinessAndCuisineTypes = async () => {
+      try {
+        const response = await getBusinessAndCuisineTypes();
+
+        if (!isApiSuccess(response.success) || !response.data) {
+          showToast(
+            response.message || 'Unable to load business and cuisine types.',
+            'error',
+          );
+          return;
+        }
+
+        setCuisineOptions(
+          response.data.cuisineTypes.map(type => ({
+            label: type.name,
+            value: type.name,
+          })),
+        );
+        setBusinessTypeOptions(
+          response.data.businessTypes.map(type => ({
+            label: type.name,
+            value: type.name,
+          })),
+        );
+      } catch (err) {
+        const message =
+          err && typeof err === 'object' && 'message' in err
+            ? String(err.message)
+            : 'Unable to load business and cuisine types.';
+        showToast(message, 'error');
+      }
+    };
+
+    loadBusinessAndCuisineTypes();
+  }, [getBusinessAndCuisineTypes, showToast]);
 
   const [locationForm, setLocationForm] = useState<LocationForm>({
     address: '',
@@ -599,6 +630,8 @@ export default function BusinessInfoOwner({ route }: Props) {
             <BusinessDetailsStep
               form={businessForm}
               errors={businessErrors}
+              cuisineOptions={cuisineOptions}
+              businessTypeOptions={businessTypeOptions}
               onFormChange={updateBusinessField}
               onPickPhoto={() => openPicker('businessPhoto')}
             />
@@ -734,11 +767,15 @@ function UploadBox({
 function BusinessDetailsStep({
   form,
   errors,
+  cuisineOptions,
+  businessTypeOptions,
   onFormChange,
   onPickPhoto,
 }: {
   form: BusinessForm;
   errors: BusinessFormErrors;
+  cuisineOptions: { label: string; value: string }[];
+  businessTypeOptions: { label: string; value: string }[];
   onFormChange: (
     field: Exclude<keyof BusinessForm, 'businessPhoto'>,
     value: string,
@@ -769,7 +806,7 @@ function BusinessDetailsStep({
       <Select
         label="Cuisine Type"
         placeholder=""
-        options={CUISINE_OPTIONS}
+        options={cuisineOptions}
         value={form.cuisineType}
         onChange={value => onFormChange('cuisineType', value)}
         containerStyle={styles.fieldSpacing}
@@ -779,7 +816,7 @@ function BusinessDetailsStep({
       <Select
         label="Business Type"
         placeholder=""
-        options={BUSINESS_TYPE_OPTIONS}
+        options={businessTypeOptions}
         value={form.businessType}
         onChange={value => onFormChange('businessType', value)}
         containerStyle={styles.fieldSpacing}

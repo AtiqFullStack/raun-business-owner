@@ -18,6 +18,25 @@ export type BusinessOwnerAuthResponse = {
   owner?: BusinessOwner;
 };
 
+export type BusinessAndCuisineType = {
+  _id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+};
+
+export type BusinessAndCuisineTypesResponse = {
+  businessTypes: BusinessAndCuisineType[];
+  cuisineTypes: BusinessAndCuisineType[];
+  counts: {
+    businessTypes: number;
+    cuisineTypes: number;
+    total: number;
+  };
+};
+
 export type UploadFile = {
   uri: string;
   name?: string;
@@ -174,6 +193,14 @@ export const useBusinessOwnerService = () => {
     [fetchData],
   );
 
+  const getBusinessAndCuisineTypes = useCallback(() => {
+    return fetchData<BusinessAndCuisineTypesResponse>({
+      url: '/admin/business-owners/types',
+      method: 'GET',
+      service: false,
+    });
+  }, [fetchData]);
+
   const updateBusinessHours = useCallback(
     (businessHours: BusinessHourPayload[]) => {
       return fetchData({
@@ -212,6 +239,7 @@ export const useBusinessOwnerService = () => {
 
   return {
     authenticateOwner,
+    getBusinessAndCuisineTypes,
     updateBusinessHours,
     updateBusinessDocuments,
     updateServiceProviderOnboarding,
