@@ -1,488 +1,372 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  Image,
-  Dimensions,
+  View,
 } from 'react-native';
-import Svg, { Path, Polyline, Circle } from 'react-native-svg';
+import { Bell, LogOut, Menu } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resetTo } from '../navigation/navigationRef';
+import { useAuth } from '../store/useAuth';
 import { colors } from '../styles/theme';
-import { vw, vh } from '../utils/responsive';
-import Logo from '../assets/svg/Code/Logo';
+import Logo from '../assets/svg/Logo.svg';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-
-/* ─── Mock Data ─────────────────────────────────────────────────── */
 const STATS = [
-  { label: 'Total Orders', value: '124', icon: '🛒', color: colors.primary, bg: colors.secondaryLight },
-  { label: 'Pending', value: '6', icon: '⏳', color: colors.warning, bg: colors.warningSoft },
-  { label: 'Revenue', value: '₹8,365', icon: '💰', color: colors.success, bg: colors.successSoft },
+  { label: "Today's\nOrder", value: '24', change: '↑ 20%' },
+  { label: 'Pending\nOrders', value: '6', change: '↑ 10%' },
+  { label: 'Revenue\nToday', value: 'B$ 5.50', change: '↑ 18%' },
 ];
 
-const RECENT_ORDERS = [
-  { id: '#1042', item: 'Butter Chicken', price: '₹340', status: 'Delivered', time: '2 min ago', thumb: null },
-  { id: '#1041', item: 'Paneer Tikka', price: '₹280', status: 'Preparing', time: '10 min ago', thumb: null },
-  { id: '#1040', item: 'Veg Biryani', price: '₹220', status: 'Delivered', time: '35 min ago', thumb: null },
-  { id: '#1039', item: 'Masala Dosa', price: '₹180', status: 'Cancelled', time: '1 hr ago', thumb: null },
+const ORDERS = [
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#E7D1DF',
+  },
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#FFF0C9',
+  },
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#D6E5E8',
+  },
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#ECD8E5',
+  },
 ];
 
-const MENU_ITEMS = [
-  { name: 'Butter Chicken', price: '₹340', category: 'Main Course', active: true },
-  { name: 'Paneer Tikka', price: '₹280', category: 'Starters', active: true },
-  { name: 'Veg Biryani', price: '₹220', category: 'Rice', active: false },
-  { name: 'Masala Dosa', price: '₹180', category: 'Breakfast', active: true },
+const BOOKINGS = [
+  {
+    title: 'Haircut - Sara Ali',
+    time: 'Today . 10:30 AM',
+    initials: 'SA',
+    tint: '#E7D1DF',
+  },
+  {
+    title: 'Haircut - Sara Ali',
+    time: 'Today . 10:30 AM',
+    initials: 'SA',
+    tint: '#FFF0C9',
+  },
+  {
+    title: 'Haircut - Sara Ali',
+    time: 'Today . 10:30 AM',
+    initials: 'SA',
+    tint: '#D6E5E8',
+  },
 ];
 
-/* Fake sparkline data */
-const CHART_POINTS = [40, 65, 45, 80, 60, 90, 75, 95, 70, 110, 88, 120];
-
-type Tab = 'Overview' | 'Orders' | 'Menu';
-
-/* ─── Main Component ─────────────────────────────────────────────── */
 export default function OwnerDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  const insets = useSafeAreaInsets();
+  const logout = useAuth(state => state.logout);
 
-  return (
-    <View style={styles.container}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Logo height={28} />
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.notifBtn}>
-            <Text style={styles.notifIcon}>🔔</Text>
-            <View style={styles.notifBadge} />
-          </TouchableOpacity>
-          <View style={styles.avatarWrapper}>
-            <Text style={styles.avatarText}>A</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Greeting */}
-      <View style={styles.greetRow}>
-        <Text style={styles.greetText}>Hello, Ahmed 👋</Text>
-        <Text style={styles.greetSub}>Here's your business summary today</Text>
-      </View>
-
-      {/* Tab Bar */}
-      <View style={styles.tabBar}>
-        {(['Overview', 'Orders', 'Menu'] as Tab[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        {activeTab === 'Overview' && <OverviewTab />}
-        {activeTab === 'Orders' && <OrdersTab />}
-        {activeTab === 'Menu' && <MenuTab />}
-      </ScrollView>
-    </View>
-  );
-}
-
-/* ─── Overview Tab ───────────────────────────────────────────────── */
-function OverviewTab() {
-  return (
-    <>
-      {/* Stat Cards */}
-      <View style={styles.statsRow}>
-        {STATS.map((s) => (
-          <View key={s.label} style={[styles.statCard, { backgroundColor: s.bg }]}>
-            <Text style={styles.statIcon}>{s.icon}</Text>
-            <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Revenue Chart */}
-      <View style={styles.chartCard}>
-        <Text style={styles.cardTitle}>Revenue This Month</Text>
-        <MiniLineChart data={CHART_POINTS} />
-        <View style={styles.chartLegend}>
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-            <Text key={d} style={styles.chartLegendText}>{d}</Text>
-          ))}
-        </View>
-      </View>
-
-      {/* Recent Orders */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.cardTitle}>Recent Orders</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAll}>View All</Text>
-          </TouchableOpacity>
-        </View>
-        {RECENT_ORDERS.slice(0, 3).map((order) => (
-          <OrderRow key={order.id} order={order} />
-        ))}
-      </View>
-
-      {/* Top Menu Items */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.cardTitle}>Top Selling Items</Text>
-        {MENU_ITEMS.slice(0, 3).map((item) => (
-          <MenuRow key={item.name} item={item} showToggle={false} />
-        ))}
-      </View>
-    </>
-  );
-}
-
-/* ─── Orders Tab ─────────────────────────────────────────────────── */
-function OrdersTab() {
-  const [filter, setFilter] = useState<string>('All');
-  const statuses = ['All', 'Delivered', 'Preparing', 'Cancelled'];
-  const filtered =
-    filter === 'All' ? RECENT_ORDERS : RECENT_ORDERS.filter((o) => o.status === filter);
-
-  return (
-    <View style={styles.sectionCard}>
-      {/* Filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-        {statuses.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[styles.filterChip, filter === s && styles.filterChipActive]}
-            onPress={() => setFilter(s)}
-          >
-            <Text style={[styles.filterChipText, filter === s && styles.filterChipTextActive]}>
-              {s}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {filtered.map((order) => (
-        <OrderRow key={order.id} order={order} expanded />
-      ))}
-    </View>
-  );
-}
-
-/* ─── Menu Tab ───────────────────────────────────────────────────── */
-function MenuTab() {
-  const [items, setItems] = useState(MENU_ITEMS);
-
-  const toggle = (name: string) => {
-    setItems((prev) =>
-      prev.map((i) => (i.name === name ? { ...i, active: !i.active } : i))
-    );
+  const handleLogout = () => {
+    logout();
+    resetTo('login');
   };
 
   return (
-    <>
-      <TouchableOpacity style={styles.addMenuBtn}>
-        <Text style={styles.addMenuBtnText}>+ Add New Item</Text>
-      </TouchableOpacity>
-      <View style={styles.sectionCard}>
-        {items.map((item) => (
-          <MenuRow key={item.name} item={item} showToggle onToggle={() => toggle(item.name)} />
-        ))}
-      </View>
-    </>
-  );
-}
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
-/* ─── Shared Sub-Components ──────────────────────────────────────── */
-function OrderRow({ order, expanded }: { order: typeof RECENT_ORDERS[0]; expanded?: boolean }) {
-  const statusColor: Record<string, string> = {
-    Delivered: colors.success,
-    Preparing: colors.warning,
-    Cancelled: colors.error,
-  };
+      <View style={[styles.hero, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            accessibilityLabel="Open menu"
+          >
+            <Menu size={22} color="#FFFFFF" strokeWidth={1.8} />
+          </TouchableOpacity>
 
-  return (
-    <View style={styles.orderRow}>
-      <View style={styles.orderLeft}>
-        <View style={styles.orderThumb}>
-          <Text style={{ fontSize: 18 }}>🍽️</Text>
+          <View pointerEvents="none" style={styles.wordmark}>
+            <Logo width={62} height={17} />
+          </View>
+
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
+              onPress={handleLogout}
+            >
+              <LogOut size={18} color="#FFFFFF" strokeWidth={1.8} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              accessibilityLabel="Notifications"
+            >
+              <Bell size={18} color="#FFFFFF" strokeWidth={1.8} />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View>
-          <Text style={styles.orderItem}>{order.item}</Text>
-          <Text style={styles.orderId}>{order.id} · {order.time}</Text>
-          {expanded && (
-            <Text style={styles.orderPrice}>{order.price}</Text>
-          )}
-        </View>
-      </View>
-      <View style={styles.orderRight}>
-        {!expanded && <Text style={styles.orderPrice}>{order.price}</Text>}
-        <View style={[styles.statusBadge, { backgroundColor: statusColor[order.status] + '20' }]}>
-          <Text style={[styles.statusText, { color: statusColor[order.status] }]}>
-            {order.status}
+
+        <View style={styles.greeting}>
+          <Text style={styles.greetingText}>
+            Hello, <Text style={styles.greetingName}>Ahemed</Text>
+          </Text>
+          <Text style={styles.greetingSubtitle}>
+            Here’s what’s happening today
           </Text>
         </View>
       </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(insets.bottom, 14) + 14 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.statsRow}>
+          {STATS.map((stat, index) => (
+            <View key={stat.label} style={styles.statCard}>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text
+                style={[
+                  styles.statChange,
+                  index === 1 && styles.statChangeOrange,
+                ]}
+              >
+                {stat.change}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>New Orders</Text>
+        <View style={styles.listCard}>
+          {ORDERS.map((order, index) => (
+            <View
+              key={`${order.id}-${index}`}
+              style={[
+                styles.listRow,
+                index === ORDERS.length - 1 && styles.lastRow,
+              ]}
+            >
+              <Avatar initials={order.initials} tint={order.tint} />
+              <View style={styles.rowInfo}>
+                <Text style={styles.primaryText}>{order.id}</Text>
+                <Text style={styles.secondaryText}>{order.customer}</Text>
+                <Text style={styles.secondaryText}>{order.details}</Text>
+              </View>
+              <Text style={styles.timeText}>{order.time}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
+        <View style={styles.listCard}>
+          {BOOKINGS.map((booking, index) => (
+            <View
+              key={`${booking.title}-${index}`}
+              style={[
+                styles.bookingRow,
+                index === BOOKINGS.length - 1 && styles.lastRow,
+              ]}
+            >
+              <Avatar initials={booking.initials} tint={booking.tint} />
+              <View style={styles.rowInfo}>
+                <Text style={styles.bookingTitle}>{booking.title}</Text>
+                <Text style={styles.bookingTime}>{booking.time}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-function MenuRow({ item, showToggle, onToggle }: { item: typeof MENU_ITEMS[0]; showToggle: boolean; onToggle?: () => void }) {
+function Avatar({ initials, tint }: { initials: string; tint: string }) {
   return (
-    <View style={styles.menuRow}>
-      <View style={styles.menuThumb}>
-        <Text style={{ fontSize: 20 }}>🍛</Text>
-      </View>
-      <View style={styles.menuInfo}>
-        <Text style={styles.menuName}>{item.name}</Text>
-        <Text style={styles.menuCategory}>{item.category}</Text>
-      </View>
-      <View style={styles.menuRight}>
-        <Text style={styles.menuPrice}>{item.price}</Text>
-        {showToggle && (
-          <TouchableOpacity
-            style={[styles.toggleBtn, item.active ? styles.toggleOn : styles.toggleOff]}
-            onPress={onToggle}
-          >
-            <Text style={styles.toggleText}>{item.active ? 'ON' : 'OFF'}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <View style={[styles.avatar, { backgroundColor: tint }]}>
+      <View style={styles.avatarHead} />
+      <View style={styles.avatarBody} />
+      <Text style={styles.avatarInitials}>{initials}</Text>
     </View>
   );
 }
 
-/* ─── Mini Line Chart ────────────────────────────────────────────── */
-function MiniLineChart({ data }: { data: number[] }) {
-  const chartW = SCREEN_W - vw(10) - 40;
-  const chartH = 80;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * chartW;
-      const y = chartH - ((v - min) / (max - min || 1)) * (chartH - 10) - 5;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  const lastIdx = data.length - 1;
-  const lastX = chartW;
-  const lastY = chartH - ((data[lastIdx] - min) / (max - min || 1)) * (chartH - 10) - 5;
-
-  return (
-    <View style={{ height: chartH + 10, marginTop: 12 }}>
-      <Svg width={chartW} height={chartH + 10}>
-        <Polyline
-          points={points}
-          fill="none"
-          stroke={colors.primary}
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        <Circle cx={lastX} cy={lastY} r={5} fill={colors.primary} />
-      </Svg>
-    </View>
-  );
-}
-
-/* ─── Styles ─────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surfaceMuted },
-
-  header: {
+  screen: { flex: 1, backgroundColor: '#E9E9E9' },
+  hero: {
+    height: 151,
+    paddingHorizontal: 14,
     backgroundColor: colors.primary,
+    borderBottomRightRadius: 18,
+  },
+  topBar: {
+    height: 35,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 14,
-    paddingHorizontal: vw(5),
   },
-  headerLeft: {},
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  notifBtn: { position: 'relative' },
-  notifIcon: { fontSize: 20 },
-  notifBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.secondary,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  avatarWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.secondary,
+  iconButton: {
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-
-  greetRow: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: vw(5),
-    paddingBottom: 20,
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  notificationDot: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.secondary,
   },
-  greetText: { color: colors.textLight, fontSize: 22, fontWeight: '800' },
-  greetSub: { color: 'rgba(255,255,255,0.72)', fontSize: 13, marginTop: 3 },
-
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: colors.screen,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 14,
+  wordmark: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 35,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 2.5,
-    borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: colors.primary },
-  tabText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
-  tabTextActive: { color: colors.primary },
-
-  scroll: { padding: vw(4), paddingBottom: 40, gap: 14 },
-
-  statsRow: { flexDirection: 'row', gap: 10 },
+  greeting: { marginTop: 5 },
+  greetingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
+  greetingName: { fontWeight: '400' },
+  greetingSubtitle: {
+    marginTop: 2,
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  scrollView: { flex: 1, marginTop: -38 },
+  content: { paddingHorizontal: 10 },
+  statsRow: { flexDirection: 'row', gap: 9, marginBottom: 18 },
   statCard: {
     flex: 1,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    minHeight: 78,
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: '#FFFFFF',
   },
-  statIcon: { fontSize: 22, marginBottom: 6 },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 3, textAlign: 'center' },
-
-  chartCard: {
-    backgroundColor: colors.screen,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  statLabel: { minHeight: 24, color: '#777777', fontSize: 10, lineHeight: 12 },
+  statValue: {
+    marginTop: 2,
+    color: '#181818',
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '800',
   },
-  chartLegend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  chartLegendText: { fontSize: 10, color: colors.textMuted },
-
-  sectionCard: {
-    backgroundColor: colors.screen,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  statChange: { marginTop: 2, color: '#0DBB69', fontSize: 9, lineHeight: 12 },
+  statChangeOrange: { color: colors.secondary },
+  sectionTitle: {
+    marginBottom: 8,
+    color: '#151515',
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
   },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 12 },
-  viewAll: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-
-  orderRow: {
+  listCard: {
+    overflow: 'hidden',
+    marginBottom: 18,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+  },
+  listRow: {
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  orderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  orderThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  orderItem: { fontSize: 14, fontWeight: '600', color: colors.text },
-  orderId: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  orderRight: { alignItems: 'flex-end', gap: 6 },
-  orderPrice: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 4 },
-  statusBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 20,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D8D8D8',
   },
-  statusText: { fontSize: 11, fontWeight: '700' },
-
-  menuRow: {
+  bookingRow: {
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    gap: 12,
-  },
-  menuThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuInfo: { flex: 1 },
-  menuName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  menuCategory: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  menuRight: { alignItems: 'flex-end', gap: 6 },
-  menuPrice: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  toggleBtn: {
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 20,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D8D8D8',
   },
-  toggleOn: { backgroundColor: colors.successSoft },
-  toggleOff: { backgroundColor: colors.errorSoft },
-  toggleText: { fontSize: 10, fontWeight: '700', color: colors.text },
-
-  filterRow: { marginBottom: 14 },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    marginRight: 8,
-  },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterChipText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-  filterChipTextSelected: { color: colors.textLight },
-  filterChipTextActive: { color: colors.textLight },
-
-  addMenuBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
+  lastRow: { borderBottomWidth: 0 },
+  avatar: {
+    width: 43,
+    height: 43,
+    marginRight: 10,
+    borderRadius: 4,
+    overflow: 'hidden',
     alignItems: 'center',
-    marginBottom: 2,
+    justifyContent: 'flex-end',
   },
-  addMenuBtnText: { color: colors.textLight, fontSize: 15, fontWeight: '700' },
+  avatarHead: {
+    position: 'absolute',
+    top: 7,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: '#876C64',
+  },
+  avatarBody: {
+    position: 'absolute',
+    bottom: -7,
+    width: 32,
+    height: 28,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    backgroundColor: '#5F4B50',
+  },
+  avatarInitials: {
+    zIndex: 1,
+    paddingBottom: 3,
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  rowInfo: { flex: 1, alignSelf: 'center' },
+  primaryText: {
+    color: '#161616',
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+  },
+  secondaryText: { color: '#383838', fontSize: 9, lineHeight: 13 },
+  timeText: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    color: '#767676',
+    fontSize: 9,
+    lineHeight: 12,
+  },
+  bookingTitle: { color: '#303030', fontSize: 9, lineHeight: 14 },
+  bookingTime: { color: '#303030', fontSize: 9, lineHeight: 14 },
 });

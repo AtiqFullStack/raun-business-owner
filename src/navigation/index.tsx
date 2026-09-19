@@ -106,7 +106,7 @@ export function RootStack() {
       <Stack.Screen name="BusinessHours" component={BusinessHours} />
       <Stack.Screen name="Documents" component={Documents} />
       <Stack.Screen name="ProfileUnderReview" component={ProfileUnderReview} />
-      <Stack.Screen name="OwnerDashboard" component={MainStack} />
+      <Stack.Screen name="OwnerDashboard" component={OwnerDashboard} />
     </Stack.Navigator>
   );
 }
