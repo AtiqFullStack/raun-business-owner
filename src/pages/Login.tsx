@@ -138,7 +138,7 @@ export default function Login() {
 
         if (isProfileCompleted) {
           showToast(response.message || 'Login successful', 'success');
-          resetTo('OwnerDashboard');
+          resetTo('app');
           return;
         }
 

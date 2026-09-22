@@ -24,7 +24,7 @@ export default function Splash({ navigation }: Props) {
 
     if (showGetStarted === 'false') {
       navigation.replace(
-        token && isProfileCompleted === true ? 'OwnerDashboard' : 'login',
+        token && isProfileCompleted === true ? 'app' : 'login',
       );
     }
   }, [isProfileCompleted, navigation, token]);

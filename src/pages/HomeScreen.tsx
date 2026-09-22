@@ -1,684 +1,372 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
-  Image,
-  Pressable,
-  RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
-import Svg, { Circle, Path, SvgUri } from 'react-native-svg';
-import { LocationSvg, NotificationSvg } from '../assets/svg';
+import { Bell, LogOut, Menu } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resetTo } from '../navigation/navigationRef';
+import { useAuth } from '../store/useAuth';
 import { colors } from '../styles/theme';
-import Logo from '../assets/svg/Code/Logo';
-import { CATEGORIES } from '../constants/categories';
-import CategoryList, {
-  type CategoryListItem,
-} from '../components/CategoryList';
-import { navigate } from '../navigation/navigationRef';
-import BannerCarousel from '../components/BannerCarousel';
-import {
-  getCategoryImageUrl,
-  useCategoryService,
-  type Category,
-} from '../services/categoryService';
-import {
-  getBannerImageUrl,
-  useBannerService,
-  type Banner,
-} from '../services/bannerService';
-import {
-  getServiceImageUrl,
-  useServiceService,
-  type Service,
-} from '../services/serviceService';
-import {
-  useRestaurantServices,
-  type Restaurant as ApiRestaurant,
-} from '../services/resturantServices';
-import { useSearchService } from '../services/searchService';
-import { useServiceStore } from '../store/useService';
-import RightArrow from '../assets/svg/Code/RightArrow';
-import { useLocationStore } from '../store/useLocationStore';
+import Logo from '../assets/svg/Logo.svg';
 
-import getImageUrl from '../utils/urlConvertor';
+const STATS = [
+  { label: "Today's\nOrder", value: '24', change: '↑ 20%' },
+  { label: 'Pending\nOrders', value: '6', change: '↑ 10%' },
+  { label: 'Revenue\nToday', value: 'B$ 5.50', change: '↑ 18%' },
+];
 
+const ORDERS = [
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#E7D1DF',
+  },
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#FFF0C9',
+  },
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#D6E5E8',
+  },
+  {
+    id: '#ORD1236',
+    customer: 'Sara Ali',
+    details: '5 Items . AED 120',
+    time: '2 Min ago',
+    initials: 'SA',
+    tint: '#ECD8E5',
+  },
+];
 
+const BOOKINGS = [
+  {
+    title: 'Haircut - Sara Ali',
+    time: 'Today . 10:30 AM',
+    initials: 'SA',
+    tint: '#E7D1DF',
+  },
+  {
+    title: 'Haircut - Sara Ali',
+    time: 'Today . 10:30 AM',
+    initials: 'SA',
+    tint: '#FFF0C9',
+  },
+  {
+    title: 'Haircut - Sara Ali',
+    time: 'Today . 10:30 AM',
+    initials: 'SA',
+    tint: '#D6E5E8',
+  },
+];
 
-const mapCategoryToListItem = (category: Category): CategoryListItem => ({
-  id: category._id,
-  label: category.title,
-  imageUrl: getCategoryImageUrl(category.image?.url),
-});
+export default function OwnerDashboard() {
+  const insets = useSafeAreaInsets();
+  const logout = useAuth(state => state.logout);
 
-const isSvgImage = (url = '') => {
-  return url.split('?')[0].toLowerCase().endsWith('.svg');
-};
-
-const formatServiceLabel = (name: string) => name.trim().replace(/\s+/, '\n');
-
-const mapBannerToSlide = (banner: Banner) => {
-  const imageUrl = getBannerImageUrl(banner.image?.url);
-
-  if (!imageUrl) {
-    return null;
-  }
-
-  if (isSvgImage(imageUrl)) {
-    return <SvgUri height="100%" uri={imageUrl} width="100%" />;
-  }
-
-  return (
-    <Image
-      accessibilityLabel={banner.title}
-      resizeMode="cover"
-      source={{ uri: imageUrl }}
-      style={styles.bannerImage}
-    />
-  );
-};
-
-export default function HomeScreen() {
-  const { getServices } = useServiceService();
-  const { getCategories } = useCategoryService();
-  const { getBanners } = useBannerService();
-  const { getRestaurants } = useRestaurantServices();
-  const { searchByCategory } = useSearchService();
-  const services = useServiceStore(state => state.services);
-  const selectedServiceId = useServiceStore(state => state.selectedServiceId);
-  const setServices = useServiceStore(state => state.setServices);
-  const setSelectedService = useServiceStore(state => state.setSelectedService);
-  const physicalLocation = useLocationStore(state => state.physicalLocation);
-  const locationLoading = useLocationStore(state => state.loading);
-  const [categories, setCategories] = useState<CategoryListItem[]>(CATEGORIES);
-  const [bannerSlides, setBannerSlides] = useState<React.ReactNode[]>([]);
-  const [restaurants, setRestaurants] = useState<ApiRestaurant[]>([]);
-  const [restaurantsLoading, setRestaurantsLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [filteredRestaurants, setFilteredRestaurants] = useState<ApiRestaurant[]>([]);
-  const headerLocation =
-    physicalLocation ||
-    (locationLoading ? 'Fetching location...' : 'Select location');
-
-  const fetchAll = useCallback(async () => {
-    setRestaurantsLoading(true);
-    try {
-      const [restaurantRes, categoryRes, bannerRes] = await Promise.allSettled([
-        getRestaurants({ page: 1, limit: 20 }),
-        selectedServiceId ? getCategories({ active: true, limit: 100 }) : Promise.resolve(null),
-        selectedServiceId ? getBanners() : Promise.resolve(null),
-      ]);
-
-      if (restaurantRes.status === 'fulfilled') {
-        const list = restaurantRes.value.data.restaurants ?? [];
-        setRestaurants(list);
-        setFilteredRestaurants(list);
-      }
-
-      if (categoryRes.status === 'fulfilled' && categoryRes.value)
-        setCategories([CATEGORIES[0], ...categoryRes.value.data.categories.map(mapCategoryToListItem)]);
-
-      if (bannerRes.status === 'fulfilled' && bannerRes.value)
-        setBannerSlides(bannerRes.value.data.banners.map(mapBannerToSlide).filter(Boolean) as React.ReactNode[]);
-    } catch {}
-    setRestaurantsLoading(false);
-  }, [getRestaurants, getCategories, getBanners, selectedServiceId]);
-
-  useEffect(() => {
-    let isMounted = true;
-    getServices()
-      .then(response => { if (isMounted) setServices(response.data.services); })
-      .catch(() => {});
-    return () => { isMounted = false; };
-  }, [getServices, setServices]);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
-  const handleCategoryPress = (item: CategoryListItem) => {
-    const next = selectedCategory === item.label ? null : item.label;
-    setSelectedCategory(next);
-    if (!next || next === 'All') {
-      setFilteredRestaurants(restaurants);
-      return;
-    }
-    searchByCategory({ categoryTitle: next })
-      .then(res => setFilteredRestaurants(res.data.restaurants ?? []))
-      .catch(() => setFilteredRestaurants([]));
+  const handleLogout = () => {
+    logout();
+    resetTo('login');
   };
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchAll();
-    setRefreshing(false);
-  }, [fetchAll]);
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        bounces={true}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Pressable
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+
+      <View style={[styles.hero, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            accessibilityLabel="Open menu"
+          >
+            <Menu size={22} color="#FFFFFF" strokeWidth={1.8} />
+          </TouchableOpacity>
+
+          <View pointerEvents="none" style={styles.wordmark}>
+            <Logo width={62} height={17} />
+          </View>
+
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
               accessibilityRole="button"
-              onPress={() => navigate('SelectLocation')}
-              style={({ pressed }) => [
-                styles.locationRow,
-                pressed && styles.pressed,
-              ]}
+              accessibilityLabel="Log out"
+              onPress={handleLogout}
             >
-              <LocationSvg height={16} width={16} />
-              <Text style={styles.locationText} numberOfLines={2}>
-                {headerLocation}
-              </Text>
-            </Pressable>
-
-            <Logo height={20} />
-            {/* 
-            <Text style={styles.logo}>
-              <Text style={styles.logoAccent}>r</Text>aun
-            </Text> */}
-
-            <Pressable style={styles.bellButton}>
-              <NotificationSvg />
-              <View style={styles.badge} />
-            </Pressable>
-          </View>
-
-          <View style={styles.searchBox}>
-            <SearchIcon />
-            <TextInput
-              placeholder="What are you looking for?"
-              placeholderTextColor="rgba(255,255,255,0.56)"
-              style={styles.searchInput}
-            />
-          </View>
-
-          <View style={styles.serviceRow}>
-            {services.map(item => {
-              const active = item._id === selectedServiceId;
-
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.95}
-                  key={item._id}
-                  onPress={() => setSelectedService(item._id)}
-                  style={[
-                    styles.serviceCard,
-                    active && styles.serviceCardActive,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.serviceIcon,
-                      // active && styles.serviceIconActive,
-                    ]}
-                  >
-                    <ServiceIcon service={item} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.serviceLabel,
-                      active && styles.serviceLabelActive,
-                    ]}
-                  >
-                    {formatServiceLabel(item.name)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+              <LogOut size={18} color="#FFFFFF" strokeWidth={1.8} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              accessibilityLabel="Notifications"
+            >
+              <Bell size={18} color="#FFFFFF" strokeWidth={1.8} />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.body}>
-          {bannerSlides.length > 0 ? (
-            <BannerCarousel
-              slides={bannerSlides}
-              containerStyle={styles.bannerCarousel}
-            />
-          ) : null}
+        <View style={styles.greeting}>
+          <Text style={styles.greetingText}>
+            Hello, <Text style={styles.greetingName}>Ahemed</Text>
+          </Text>
+          <Text style={styles.greetingSubtitle}>
+            Here’s what’s happening today
+          </Text>
+        </View>
+      </View>
 
-          <CategoryList
-            data={categories}
-            selectedKey={selectedCategory ?? 'All'}
-            keyExtractor={item => item.label}
-            onPress={handleCategoryPress}
-          />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(insets.bottom, 14) + 14 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.statsRow}>
+          {STATS.map((stat, index) => (
+            <View key={stat.label} style={styles.statCard}>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text
+                style={[
+                  styles.statChange,
+                  index === 1 && styles.statChangeOrange,
+                ]}
+              >
+                {stat.change}
+              </Text>
+            </View>
+          ))}
+        </View>
 
-          <RestaurantSection
-            restaurants={filteredRestaurants}
-            loading={restaurantsLoading}
-            title="Popular Restaurant"
-            categoryTitle={selectedCategory}
-          />
-          <RestaurantSection
-            restaurants={filteredRestaurants}
-            loading={restaurantsLoading}
-            title="Recommended With Deals"
-            categoryTitle={selectedCategory}
-          />
+        <Text style={styles.sectionTitle}>New Orders</Text>
+        <View style={styles.listCard}>
+          {ORDERS.map((order, index) => (
+            <View
+              key={`${order.id}-${index}`}
+              style={[
+                styles.listRow,
+                index === ORDERS.length - 1 && styles.lastRow,
+              ]}
+            >
+              <Avatar initials={order.initials} tint={order.tint} />
+              <View style={styles.rowInfo}>
+                <Text style={styles.primaryText}>{order.id}</Text>
+                <Text style={styles.secondaryText}>{order.customer}</Text>
+                <Text style={styles.secondaryText}>{order.details}</Text>
+              </View>
+              <Text style={styles.timeText}>{order.time}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
+        <View style={styles.listCard}>
+          {BOOKINGS.map((booking, index) => (
+            <View
+              key={`${booking.title}-${index}`}
+              style={[
+                styles.bookingRow,
+                index === BOOKINGS.length - 1 && styles.lastRow,
+              ]}
+            >
+              <Avatar initials={booking.initials} tint={booking.tint} />
+              <View style={styles.rowInfo}>
+                <Text style={styles.bookingTitle}>{booking.title}</Text>
+                <Text style={styles.bookingTime}>{booking.time}</Text>
+              </View>
+            </View>
+          ))}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-function ServiceIcon({ service }: { service: Service }) {
-  const imageUrl = getServiceImageUrl(service.image?.url);
-
-  if (!imageUrl) {
-    return null;
-  }
-
-  if (isSvgImage(imageUrl)) {
-    return <SvgUri height={40} uri={imageUrl} width={40} />;
-  }
-
+function Avatar({ initials, tint }: { initials: string; tint: string }) {
   return (
-    <Image
-      accessibilityLabel={service.name}
-      resizeMode="contain"
-      source={{ uri: imageUrl }}
-      style={styles.serviceImage}
-    />
-  );
-}
-
-function RestaurantSection({
-  restaurants,
-  loading,
-  title,
-  categoryTitle,
-}: {
-  restaurants: ApiRestaurant[];
-  loading?: boolean;
-  title: string;
-  categoryTitle?: string | null;
-}) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          {categoryTitle ? `${categoryTitle} — ${title}` : title}
-        </Text>
-        <TouchableOpacity
-          style={styles.viewAllButton}
-          onPress={() =>
-            navigate('PopularRestaurants', categoryTitle ? { categoryTitle } : undefined)
-          }
-        >
-          <Text style={styles.viewAll}>View All </Text>
-          <RightArrow />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <ActivityIndicator color={colors.primary} size="small" />
-      ) : (
-        <ScrollView
-          horizontal
-          contentContainerStyle={styles.restaurantRow}
-          showsHorizontalScrollIndicator={false}
-        >
-          {restaurants.map((item) => {
-            const imageUrl = getImageUrl(item.images?.[0]?.url);
-            return (
-              <Pressable
-                key={item._id}
-                style={styles.restaurantCard}
-                onPress={() => navigate('RestaurantDetails', { restaurantId: item._id })}
-              >
-                {imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={styles.restaurantImage} />
-                ) : (
-                  <View style={[styles.restaurantImage, styles.restaurantImagePlaceholder]} />
-                )}
-                <Text style={styles.restaurantName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <View style={styles.ratingRow}>
-                  <StarIcon />
-                  <Text style={styles.ratingText}>4.5</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
+    <View style={[styles.avatar, { backgroundColor: tint }]}>
+      <View style={styles.avatarHead} />
+      <View style={styles.avatarBody} />
+      <Text style={styles.avatarInitials}>{initials}</Text>
     </View>
   );
 }
 
-function SearchIcon() {
-  return (
-    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
-      <Circle
-        cx={10.5}
-        cy={10.5}
-        r={6.5}
-        stroke={colors.textLight}
-        strokeWidth={2}
-      />
-      <Path
-        d="m16 16 4 4"
-        stroke={colors.textLight}
-        strokeLinecap="round"
-        strokeWidth={2}
-      />
-    </Svg>
-  );
-}
-
-function StarIcon() {
-  return (
-    <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="m12 2 2.8 6 6.5.8-4.8 4.5 1.2 6.4L12 16.5l-5.7 3.2 1.2-6.4-4.8-4.5L9.2 8 12 2Z"
-        fill={colors.primary}
-      />
-    </Svg>
-  );
-}
-
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.screen,
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 116,
-  },
-  header: {
-    backgroundColor: colors.secondaryDark,
-    borderBottomLeftRadius: 18,
+  screen: { flex: 1, backgroundColor: '#E9E9E9' },
+  hero: {
+    height: 151,
+    paddingHorizontal: 14,
+    backgroundColor: colors.primary,
     borderBottomRightRadius: 18,
-    paddingBottom: 56,
-    paddingHorizontal: 26,
-    paddingTop: 18,
   },
-  headerTop: {
-    alignItems: 'center',
+  topBar: {
+    height: 35,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  locationRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 5,
-    width: 92,
-  },
-  locationText: {
-    color: colors.textLight,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 12,
-  },
-  logo: {
-    color: colors.textLight,
-    fontSize: 25,
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  logoAccent: {
-    color: colors.primary,
-  },
-  bellButton: {
+  iconButton: {
+    width: 30,
+    height: 30,
     alignItems: 'center',
-    height: 32,
     justifyContent: 'center',
     position: 'relative',
-    width: 32,
   },
-  pressed: {
-    opacity: 0.78,
-  },
-  badge: {
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-    height: 8,
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  notificationDot: {
     position: 'absolute',
-    right: 7,
-    top: 6,
-    width: 8,
+    top: 5,
+    right: 5,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.secondary,
   },
-  searchBox: {
-    alignItems: 'center',
-
-    borderRadius: 4,
-
-    flexDirection: 'row',
-    height: 43,
-    marginTop: 20,
-    paddingHorizontal: 12,
-    borderColor: colors.serachnputBorder,
-    borderWidth: 1,
-    marginBottom: 35,
-  },
-  searchInput: {
-    color: colors.Searchplaceholder,
-    flex: 1,
-    fontSize: 14,
-    marginLeft: 9,
-    paddingVertical: 0,
-  },
-  serviceRow: {
-    bottom: -46,
-    flexDirection: 'row',
-    gap: 12,
-    left: 26,
+  wordmark: {
     position: 'absolute',
-    right: 26,
-  },
-  serviceCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: 5,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 102,
-    paddingHorizontal: 5,
-    paddingTop: 12,
-  },
-  serviceCardActive: {
-    backgroundColor: colors.surface,
-    borderColor: colors.secondary,
-    borderStyle: 'dashed',
-  },
-  serviceIcon: {
-    alignItems: 'center',
-    // height: 50,
+    left: 0,
+    right: 0,
+    height: 35,
     justifyContent: 'center',
-    // width: 50,
+    alignItems: 'center',
   },
-  serviceIconActive: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
+  greeting: { marginTop: 5 },
+  greetingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '700',
   },
-  serviceImage: {
-    height: 40,
-    width: 40,
+  greetingName: { fontWeight: '400' },
+  greetingSubtitle: {
+    marginTop: 2,
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 11,
+    lineHeight: 15,
   },
-  serviceLabel: {
-    color: colors.secondaryDark,
-    fontSize: 10,
+  scrollView: { flex: 1, marginTop: -38 },
+  content: { paddingHorizontal: 10 },
+  statsRow: { flexDirection: 'row', gap: 9, marginBottom: 18 },
+  statCard: {
+    flex: 1,
+    minHeight: 78,
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: '#FFFFFF',
+  },
+  statLabel: { minHeight: 24, color: '#777777', fontSize: 10, lineHeight: 12 },
+  statValue: {
+    marginTop: 2,
+    color: '#181818',
+    fontSize: 17,
+    lineHeight: 20,
     fontWeight: '800',
+  },
+  statChange: { marginTop: 2, color: '#0DBB69', fontSize: 9, lineHeight: 12 },
+  statChangeOrange: { color: colors.secondary },
+  sectionTitle: {
+    marginBottom: 8,
+    color: '#151515',
+    fontSize: 10,
     lineHeight: 13,
-    marginTop: 5,
-    textAlign: 'center',
+    fontWeight: '800',
   },
-  serviceLabelActive: {
-    color: colors.secondaryDark,
-  },
-  body: {
-    paddingHorizontal: 26,
-    paddingTop: 66,
-  },
-  bannerCarousel: {
-    marginBottom: 12,
-  },
-  bannerImage: {
-    height: '100%',
-    width: '100%',
-  },
-  hero: {
-    backgroundColor: colors.secondaryDark,
-    borderRadius: 10,
-    flexDirection: 'row',
-    minHeight: 172,
+  listCard: {
     overflow: 'hidden',
-    position: 'relative',
+    marginBottom: 18,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
   },
-  heroCopy: {
-    flex: 1,
-    paddingBottom: 16,
-    paddingLeft: 14,
-    paddingTop: 14,
+  listRow: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D8D8D8',
+  },
+  bookingRow: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D8D8D8',
+  },
+  lastRow: { borderBottomWidth: 0 },
+  avatar: {
+    width: 43,
+    height: 43,
+    marginRight: 10,
+    borderRadius: 4,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  avatarHead: {
+    position: 'absolute',
+    top: 7,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: '#876C64',
+  },
+  avatarBody: {
+    position: 'absolute',
+    bottom: -7,
+    width: 32,
+    height: 28,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    backgroundColor: '#5F4B50',
+  },
+  avatarInitials: {
     zIndex: 1,
-  },
-  heroBrand: {
-    color: colors.textLight,
-    fontSize: 22,
+    paddingBottom: 3,
+    color: '#FFFFFF',
+    fontSize: 8,
     fontWeight: '700',
-    lineHeight: 26,
   },
-  heroTitle: {
-    color: colors.textLight,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 24,
-    marginTop: 18,
+  rowInfo: { flex: 1, alignSelf: 'center' },
+  primaryText: {
+    color: '#161616',
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
   },
-  heroTitleAccent: {
-    color: colors.primary,
-  },
-  heroText: {
-    color: 'rgba(255,255,255,0.8)',
+  secondaryText: { color: '#383838', fontSize: 9, lineHeight: 13 },
+  timeText: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    color: '#767676',
     fontSize: 9,
     lineHeight: 12,
-    marginTop: 7,
-    maxWidth: 132,
   },
-  heroButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    flexDirection: 'row',
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  heroButtonText: {
-    color: colors.textLight,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  heroButtonArrow: {
-    color: colors.textLight,
-    fontSize: 11,
-    fontWeight: '900',
-    marginLeft: 4,
-  },
-  heroImage: {
-    bottom: 0,
-    height: 162,
-    position: 'absolute',
-    right: -8,
-    width: 180,
-  },
-  favoriteBubble: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 8,
-    top: 9,
-    width: 40,
-  },
-  section: {
-    marginBottom: 22,
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  viewAll: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  viewAllButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  restaurantRow: {
-    gap: 12,
-    paddingBottom: 2,
-  },
-  restaurantCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 5,
-    elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    width: 112,
-  },
-  restaurantImage: {
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5,
-    height: 58,
-    width: '100%',
-  },
-  restaurantImagePlaceholder: {
-    backgroundColor: colors.screen,
-  },
-  restaurantName: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-    marginHorizontal: 8,
-    marginTop: 8,
-  },
-  ratingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginHorizontal: 8,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  ratingText: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
+  bookingTitle: { color: '#303030', fontSize: 9, lineHeight: 14 },
+  bookingTime: { color: '#303030', fontSize: 9, lineHeight: 14 },
 });

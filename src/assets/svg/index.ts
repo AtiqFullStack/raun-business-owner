@@ -1,5 +1,6 @@
 import HomeSvg from '../svg/Home.svg';
 import OrderSvg from '../svg/Order.svg';
+import BellSvg from '../svg/bellIcon.svg';
 import MainSvg from './Code/MainSvg';
 
 import OfferSvg from '../svg/offer.svg';
@@ -48,5 +49,6 @@ export {
   RstSvg,
   EmailSvg,
   LockSvg,
-  BusinesIcon
+  BusinesIcon,
+  BellSvg
 };
