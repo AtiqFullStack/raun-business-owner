@@ -20,6 +20,8 @@ export type BusinessOwnerAuthResponse = {
   owner?: BusinessOwner;
 };
 
+export type TotalExperienceRange = 'lt1' | '1-2' | '2-5' | '5-10' | '10+';
+
 export type DemandServiceType = {
   _id: string;
   icon?: string;
@@ -92,6 +94,7 @@ export type BusinessDocumentsPayload = {
 
 export type ServiceProviderOnboardingPayload = {
   demandServiceTypeId: string;
+  totalExperienceRange: TotalExperienceRange;
   workExperiences: {
     jobTitle: string;
     companyName: string;

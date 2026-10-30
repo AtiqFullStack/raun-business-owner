@@ -25,6 +25,7 @@ import DemandServiceTypeSelect from '../components/DemandServiceTypeSelect';
 import {
   validateWorkStep,
   validateRatesStep,
+  calculateTotalExperienceYears,
   type StepErrors,
 } from '../utils/serviceProviderValidation';
 import { languages } from '../assets/data/languages';
@@ -38,6 +39,7 @@ import {
   useBusinessOwnerService,
   type BusinessOwner,
   type ServiceProviderOnboardingPayload,
+  type TotalExperienceRange,
   type UploadFile,
 } from '../services/businessOwnerService';
 
@@ -78,7 +80,7 @@ interface EducationEntry {
 }
 
 interface WorkExperienceForm {
-  totalExperience: string;
+  totalExperience: TotalExperienceRange | '';
   experiences: WorkExperienceEntry[];
   educations: EducationEntry[];
 }
@@ -109,6 +111,8 @@ const EXPERIENCE_RANGE_OPTIONS = [
   { label: '5 - 10 years', value: '5-10' },
   { label: '10+ years', value: '10+' },
 ];
+const isExperienceRange = (value: string): value is TotalExperienceRange =>
+  EXPERIENCE_RANGE_OPTIONS.some(option => option.value === value);
 
 const AVAILABILITY_OPTIONS = [
   { label: 'Full Time', value: 'FULL_TIME' },
@@ -438,35 +442,45 @@ export default function BusinessInfoSP({ route }: Props) {
     }
   };
 
-  const buildServiceProviderPayload = (): ServiceProviderOnboardingPayload => ({
-    demandServiceTypeId: profile.demandServiceTypeId,
-    workExperiences: workForm.experiences.map(experience => ({
-      jobTitle: experience.jobTitle,
-      companyName: experience.companyName,
-      startDate: experience.startDate,
-      endDate: experience.currentlyWorking ? null : experience.endDate || null,
-      currentlyWorking: experience.currentlyWorking,
-    })),
-    educationCertifications: workForm.educations.map(education => ({
-      title: education.title,
-      institution: education.institution,
-      startDate: education.startDate,
-      endDate: education.endDate,
-      description: education.description,
-      certificateUrl: education.certificateUrl,
-    })),
-    hourlyRate: Number(ratesForm.hourlyRate),
-    serviceCallCharge: Number(ratesForm.serviceCallCharge),
-    minimumCharge: Number(ratesForm.minimumCharge),
-    currency: 'AED',
-    availabilityPreference: ratesForm.availabilityPreference,
-    workingAreas: ratesForm.workingAreas.map(area => ({
-      address: area.address,
-      area: area.area,
-      city: area.city,
-      pinCode: area.pinCode,
-    })),
-  });
+  const buildServiceProviderPayload =
+    (): ServiceProviderOnboardingPayload => {
+      if (!isExperienceRange(workForm.totalExperience)) {
+        throw new Error('Please select your experience range.');
+      }
+
+      return {
+        demandServiceTypeId: profile.demandServiceTypeId,
+        totalExperienceRange: workForm.totalExperience,
+        workExperiences: workForm.experiences.map(experience => ({
+          jobTitle: experience.jobTitle,
+          companyName: experience.companyName,
+          startDate: experience.startDate,
+          endDate: experience.currentlyWorking
+            ? null
+            : experience.endDate || null,
+          currentlyWorking: experience.currentlyWorking,
+        })),
+        educationCertifications: workForm.educations.map(education => ({
+          title: education.title,
+          institution: education.institution,
+          startDate: education.startDate,
+          endDate: education.endDate,
+          description: education.description,
+          certificateUrl: education.certificateUrl,
+        })),
+        hourlyRate: Number(ratesForm.hourlyRate),
+        serviceCallCharge: Number(ratesForm.serviceCallCharge),
+        minimumCharge: Number(ratesForm.minimumCharge),
+        currency: 'AED',
+        availabilityPreference: ratesForm.availabilityPreference,
+        workingAreas: ratesForm.workingAreas.map(area => ({
+          address: area.address,
+          area: area.area,
+          city: area.city,
+          pinCode: area.pinCode,
+        })),
+      };
+    };
 
   const handleServiceProviderSubmit = async () => {
     if (!profile.demandServiceTypeId) {
@@ -587,6 +601,7 @@ export default function BusinessInfoSP({ route }: Props) {
               form={workForm}
               errors={workErrors}
               onTotalExperienceChange={val =>
+                isExperienceRange(val) &&
                 setWorkForm(prev => ({ ...prev, totalExperience: val }))
               }
               onUpdateExperience={updateExperience}
@@ -860,7 +875,7 @@ function LanguageMultiSelect({
 interface WorkExperienceStepProps {
   errors: StepErrors;
   form: WorkExperienceForm;
-  onTotalExperienceChange: (val: string) => void;
+  onTotalExperienceChange: (val: TotalExperienceRange) => void;
   onUpdateExperience: (
     id: string,
     field: keyof WorkExperienceEntry,
@@ -888,6 +903,8 @@ function WorkExperienceStep({
   onAddEducation,
   onRemoveEducation,
 }: WorkExperienceStepProps) {
+  const calculatedExperience = calculateTotalExperienceYears(form.experiences);
+
   return (
     <View style={styles.stepWrapper}>
       <Text style={styles.sectionLabel}>Total Experience</Text>
@@ -896,9 +913,16 @@ function WorkExperienceStep({
         placeholder="Select experience Range"
         error={errors.totalExperience}
         value={form.totalExperience}
-        onChange={onTotalExperienceChange}
+        onChange={value => {
+          if (isExperienceRange(value)) onTotalExperienceChange(value);
+        }}
         containerStyle={styles.selectSpacing}
       />
+      {calculatedExperience !== null && (
+        <Text style={styles.calculatedExperience}>
+          Calculated experience from work dates: {calculatedExperience} years
+        </Text>
+      )}
 
       <Text style={styles.sectionLabel}>Work Experience</Text>
       {!!errors.experiences && (
@@ -1325,6 +1349,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionLabelTop: { marginTop: 20 },
+  calculatedExperience: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginBottom: 16,
+    marginTop: -8,
+  },
   inputSpacing: { marginBottom: 16 },
   selectSpacing: { marginBottom: 16 },
   fieldLabel: {

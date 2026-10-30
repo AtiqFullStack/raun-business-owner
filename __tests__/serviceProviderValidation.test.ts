@@ -1,4 +1,5 @@
 import {
+  calculateTotalExperienceYears,
   validateWorkStep,
   validateRatesStep,
 } from '../src/utils/serviceProviderValidation';
@@ -40,6 +41,33 @@ const rates = () => ({
 });
 test('ongoing work does not need an end date and certificates do not need a URL', () => {
   expect(validateWorkStep(work())).toEqual({});
+});
+test('calculates exact experience from date ranges without double-counting overlaps', () => {
+  expect(
+    calculateTotalExperienceYears(
+      [
+        {
+          ...experience,
+          startDate: '2020-01-01',
+          endDate: '2022-07-02',
+          currentlyWorking: false,
+        },
+        {
+          ...experience,
+          startDate: '2021-01-01',
+          endDate: '2023-01-01',
+          currentlyWorking: false,
+        },
+      ],
+      new Date('2024-01-01T00:00:00.000Z'),
+    ),
+  ).toBe(3);
+  expect(calculateTotalExperienceYears([experience])).not.toBeNull();
+  expect(
+    calculateTotalExperienceYears([
+      { ...experience, startDate: 'invalid', currentlyWorking: false },
+    ]),
+  ).toBeNull();
 });
 test('requires nonempty repeated sections and trimmed fields on the experience step', () => {
   const form = work();

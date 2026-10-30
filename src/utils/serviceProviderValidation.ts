@@ -35,6 +35,64 @@ function dateValue(value: string): number | null {
     ? date.getTime()
     : null;
 }
+
+export function calculateTotalExperienceYears(
+  experiences: {
+    startDate: string;
+    endDate: string;
+    currentlyWorking: boolean;
+  }[],
+  asOf = new Date(),
+): number | null {
+  const today = new Date(
+    Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate()),
+  ).getTime();
+  const intervals = experiences
+    .map(experience => ({
+      start: dateValue(experience.startDate),
+      end: experience.currentlyWorking
+        ? today
+        : dateValue(experience.endDate),
+    }));
+  const isValidInterval = (
+    interval: { start: number | null; end: number | null },
+  ): interval is { start: number; end: number } =>
+    interval.start !== null &&
+    interval.end !== null &&
+    interval.end >= interval.start;
+  const validIntervals = intervals.filter(isValidInterval);
+
+  if (
+    !intervals.length ||
+    validIntervals.length !== intervals.length
+  )
+    return null;
+
+  validIntervals.sort((left, right) => left.start - right.start);
+
+  let totalMilliseconds = 0;
+  let currentInterval: { start: number; end: number } | null = null;
+  for (const interval of validIntervals) {
+    if (!currentInterval) {
+      currentInterval = { ...interval };
+    } else if (interval.start <= currentInterval.end) {
+      currentInterval.end = Math.max(currentInterval.end, interval.end);
+    } else {
+      totalMilliseconds += currentInterval.end - currentInterval.start;
+      currentInterval = { ...interval };
+    }
+  }
+  if (currentInterval) {
+    totalMilliseconds += currentInterval.end - currentInterval.start;
+  }
+
+  return (
+    Math.round(
+      (totalMilliseconds / (365.2425 * 24 * 60 * 60 * 1000)) * 10,
+    ) / 10
+  );
+}
+
 function validateDates(
   errors: StepErrors,
   key: string,

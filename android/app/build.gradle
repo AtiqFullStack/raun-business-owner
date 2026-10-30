@@ -124,7 +124,7 @@ androidComponents {
              def date = new Date().format("dd-MMM-yyyy_hh-mm-a")
 
             // ✅ safe name (no brackets)
-            def newName = "${appName}_User_v${versionName}_${date}.apk"
+            def newName = "${appName}_BusinessOwner_v${versionName}_${date}.apk"
 
             output.outputFileName.set(newName)
         }
