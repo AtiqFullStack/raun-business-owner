@@ -1,3 +1,4 @@
+import ProviderProfile from './ProviderProfile';
 import React from 'react';
 import {
   Image,
@@ -66,7 +67,7 @@ const PROFILE_MENU: Omit<MenuItem, 'onPress'>[] = [
 
 
 
-export default function Profile() {
+function BusinessProfile() {
   const navigation =
     useNavigation<NativeStackNavigationProp<AccountStackParamList>>();
   const user = useAuth(state => state.user);
@@ -523,3 +524,8 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+
+export default function Profile() {
+  const type = useAuth(state => state.ownerType);
+  return type === "SERVICE_PROVIDER" ? <ProviderProfile /> : <BusinessProfile />;
+}

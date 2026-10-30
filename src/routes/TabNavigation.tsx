@@ -20,7 +20,14 @@ export type MainTabParamList = {
   Account: undefined;
 };
 export type BookingStackParamList = {
-  Booking: undefined;
+  Booking:
+    | {
+        status?:
+          | import('../services/demandBookingService').BookingStatus
+          | 'all';
+        period?: 'today';
+      }
+    | undefined;
   BookingDetails: { bookingId: string };
 };
 export type AccountStackParamList = {

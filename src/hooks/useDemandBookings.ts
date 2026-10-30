@@ -12,7 +12,11 @@ export const bookingError = (error: unknown) =>
   error && typeof error === 'object' && 'message' in error
     ? String(error.message)
     : 'Unable to load bookings.';
-export default function useDemandBookings(status: BookingStatus | 'all') {
+export default function useDemandBookings(
+  status: BookingStatus | 'all',
+  search = '',
+  period?: 'today',
+) {
   const { getBookings } = useDemandBookingService();
   const ownerId = useAuth(state => state.user?.id);
   const [items, setItems] = useState<DemandBooking[]>([]),
@@ -40,10 +44,12 @@ export default function useDemandBookings(status: BookingStatus | 'all') {
       setLoading(true);
       setError('');
       try {
-        const result = await getBookings(
-          status,
-          append ? pages.current.page + 1 : 1,
-        );
+        const page = append ? pages.current.page + 1 : 1;
+        const result = await (period
+          ? getBookings(status, page, search, period)
+          : search
+          ? getBookings(status, page, search)
+          : getBookings(status, page));
         if (
           !active.current ||
           current !== generation.current ||
@@ -79,7 +85,7 @@ export default function useDemandBookings(status: BookingStatus | 'all') {
         }
       }
     },
-    [getBookings, ownerId, status],
+    [getBookings, ownerId, status, search, period],
   );
   useFocusEffect(
     useCallback(() => {

@@ -1,3 +1,4 @@
+import ProviderEditProfile from './ProviderEditProfile';
 import React, { useMemo, useState } from 'react';
 import {
   Image,
@@ -34,7 +35,7 @@ const maxProfileImageSize = 5 * 1024 * 1024;
 
 
 
-export default function EditProfile({ navigation }: Props) {
+function BusinessEditProfile({ navigation }: Props) {
   const user = useAuth(state => state.user);
   const updateUserProfile = useAuth(state => state.updateUserProfile);
   const showToast = useToast(state => state.showToast);
@@ -408,3 +409,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+
+export default function EditProfile(props: Props) {
+ const type = useAuth(state => state.ownerType);
+ return type === "SERVICE_PROVIDER" ? <ProviderEditProfile {...props} /> : <BusinessEditProfile {...props} />;
+}

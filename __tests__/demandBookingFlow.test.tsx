@@ -1,12 +1,32 @@
+jest.mock('lucide-react-native', () => ({
+  ArrowLeft: () => null,
+  ArrowUpRight: () => null,
+  Banknote: () => null,
+  CalendarDays: () => null,
+  Clock3: () => null,
+  MapPin: () => null,
+  StickyNote: () => null,
+  Wrench: () => null,
+  Search: () => null,
+  X: () => null,
+  Phone: () => null,
+  MessageSquare: () => null,
+}));
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (effect: () => void) =>
     require('react').useEffect(effect, [effect]),
 }));
 jest.mock('../src/components/CommonHeader', () => ({
   __esModule: true,
-  default: ({ title }: any) => {
-    const { Text } = require('react-native');
-    return <Text>{title}</Text>;
+  default: ({ title, left, right }: any) => {
+    const { Text, View } = require('react-native');
+    return (
+      <View>
+        {left}
+        <Text>{title}</Text>
+        {right}
+      </View>
+    );
   },
 }));
 jest.mock('../src/components/KeyboardWrapper', () => ({
@@ -53,7 +73,7 @@ jest.mock('react-native/Libraries/Lists/FlatList', () => ({
   },
 }));
 import React from 'react';
-import { DeviceEventEmitter, Text } from 'react-native';
+import { DeviceEventEmitter, Linking, Text, TextInput } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import BookingScreen from '../src/pages/BookingScreen';
 import BookingDetailsScreen from '../src/pages/BookingDetailsScreen';
@@ -187,4 +207,81 @@ test('rapid Accept taps submit once and show server conflicts', async () => {
     reject(new Error('This booking has already changed. Please refresh.')),
   );
   expect(text()).toContain('This booking has already changed. Please refresh.');
+});
+
+test('booking search uses the server filter after typing', async () => {
+  jest.useFakeTimers();
+  try {
+    await mountList();
+    await act(async () => {
+      tree.root
+        .findByProps({ accessibilityLabel: 'Search bookings' })
+        .props.onPress();
+    });
+    await act(async () => {
+      tree.root.findByType(TextInput).props.onChangeText('Electrician');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(250);
+    });
+    expect(mockGetBookings).toHaveBeenLastCalledWith(
+      'pending',
+      1,
+      'Electrician',
+    );
+  } finally {
+    jest.useRealTimers();
+  }
+});
+test('booking detail contact and map buttons use actual customer data', async () => {
+  mockGetBooking.mockResolvedValue({
+    ...booking,
+    customer: { name: 'Actual Customer', phoneNumber: '+6731234567' },
+  });
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  try {
+    await act(async () => {
+      tree = create(
+        <BookingDetailsScreen
+          navigation={navigation as never}
+          route={{ params: { bookingId: 'booking' } } as never}
+        />,
+      );
+    });
+    await act(async () => {
+      await tree.root
+        .findByProps({ accessibilityLabel: 'Call customer' })
+        .props.onPress();
+    });
+    expect(open).toHaveBeenCalledWith('tel:+6731234567');
+    await act(async () => {
+      await tree.root
+        .findByProps({ accessibilityLabel: 'Message customer' })
+        .props.onPress();
+    });
+    expect(open).toHaveBeenCalledWith('sms:+6731234567');
+    await press('View On Map');
+    expect(open).toHaveBeenCalledWith(
+      'https://www.google.com/maps/search/?api=1&query=Central%20Road',
+    );
+  } finally {
+    open.mockRestore();
+  }
+});
+
+test('today View all loads every status while status tabs retain the day filter', async () => {
+  await act(async () => {
+    tree = create(
+      <BookingScreen
+        navigation={navigation as never}
+        route={{ params: { status: 'all', period: 'today' } } as never}
+      />,
+    );
+  });
+  expect(mockGetBookings).toHaveBeenLastCalledWith('all', 1, '', 'today');
+  expect(text()).toContain('Today’s Bookings');
+  await press('Accepted');
+  expect(mockGetBookings).toHaveBeenLastCalledWith('confirmed', 1, '', 'today');
+  await press('All');
+  expect(mockGetBookings).toHaveBeenLastCalledWith('all', 1, '', 'today');
 });

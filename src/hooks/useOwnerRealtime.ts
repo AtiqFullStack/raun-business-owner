@@ -78,6 +78,10 @@ export default function useOwnerRealtime() {
         const profile = await fetchData<{
           userAuthId?: string;
           verificationStatus?: string;
+          type?: string;
+          isProfileCompleted?: boolean;
+          fullName?: string;
+          businessName?: string;
         }>({ url: '/business-owners/me', service: false });
         if (
           !active ||
@@ -89,7 +93,16 @@ export default function useOwnerRealtime() {
         const user = useAuth.getState().user;
         if (!user || user.id !== ownerId) return;
         useAuth.setState({
-          user: { ...user, userAuthId: profile.data.userAuthId },
+          user: {
+            ...user,
+            userAuthId: profile.data.userAuthId,
+            name:
+              profile.data.fullName || profile.data.businessName || user.name,
+          },
+          ownerType: profile.data.type || useAuth.getState().ownerType,
+          isProfileCompleted:
+            profile.data.isProfileCompleted ??
+            useAuth.getState().isProfileCompleted,
         });
         if (!socketListening) {
           useOwnerNotifications.getState().reset(ownerId);

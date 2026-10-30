@@ -1,7 +1,7 @@
 import useOwnerRealtime from './src/hooks/useOwnerRealtime';
 import { flushDemandNotification } from './src/services/demandNotificationNavigation';
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import {
   SafeAreaProvider,
@@ -25,6 +25,7 @@ export default function App() {
 function AppContent() {
   useOwnerRealtime();
   const insets = useSafeAreaInsets();
+  const isProvider = useAuth(state => state.ownerType === 'SERVICE_PROVIDER');
   const { getPhysicalLocations } = useLocation();
   const hasHydrated = useAuth(state => state.hasHydrated);
 
@@ -42,12 +43,22 @@ function AppContent() {
     <View
       style={[
         styles.container,
+        isProvider && styles.providerContainer,
         {
           paddingTop: insets.top,
           paddingBottom: insets.bottom,
         },
       ]}
     >
+      {isProvider && (
+        <StatusBar barStyle="light-content" backgroundColor="#164C48" />
+      )}
+      {isProvider && (
+        <View
+          pointerEvents="none"
+          style={[styles.providerBottom, { height: insets.bottom }]}
+        />
+      )}
       <NavigationContainer
         ref={navigationRef}
         onReady={flushDemandNotification}
@@ -61,6 +72,14 @@ function AppContent() {
 }
 
 const styles = StyleSheet.create({
+  providerContainer: { backgroundColor: '#164C48' },
+  providerBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

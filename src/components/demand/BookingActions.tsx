@@ -100,18 +100,18 @@ const styles = StyleSheet.create({
   action: {
     flex: 1,
     backgroundColor: '#164C48',
-    minHeight: 42,
-    borderRadius: 6,
+    minHeight: 38,
+    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   decline: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#164C48',
+    borderColor: '#FF7418',
   },
   label: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
-  declineLabel: { color: '#164C48' },
+  declineLabel: { color: '#F57923' },
   error: { color: '#B54136', fontSize: 12, lineHeight: 18, marginTop: 10 },
   spinner: { marginTop: 10 },
 });

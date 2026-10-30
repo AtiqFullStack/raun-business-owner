@@ -16,16 +16,27 @@ export type DemandBooking = {
   serviceTypeName: string;
   scheduledAt: string;
   status: BookingStatus;
+  customer?: { name: string; phoneNumber: string; profilePhoto?: string };
   notes?: string;
   cancellationReason?: string;
   ownerDecision?: 'accepted' | 'rejected';
-  estimate: { totalAmount: number; currency: string; durationMinutes: number };
+  estimate: {
+    totalAmount: number;
+    currency: string;
+    durationMinutes: number;
+    hourlyRate?: number;
+    serviceCallCharge?: number;
+    minimumCharge?: number;
+    taxAmount?: number;
+  };
   paymentMethod?: 'CASH_ON_SERVICE';
   paymentStatus?: 'unpaid' | 'paid';
   serviceAddress: {
     formattedAddress: string;
     contactName?: string;
     phoneNumber?: string;
+    latitude?: number;
+    longitude?: number;
   };
 };
 export const bookingStatusLabel = (status: BookingStatus) =>
@@ -38,16 +49,59 @@ export const bookingStatusLabel = (status: BookingStatus) =>
   }[status]);
 export const bookingAmount = (booking: DemandBooking) =>
   `${booking.estimate.currency} ${booking.estimate.totalAmount.toFixed(2)}`;
+export type DemandDashboardData = {
+  profile: { name: string; currency: string };
+  metrics: {
+    bookings: number;
+    completed: number;
+    newBookings: number;
+    pending: number;
+    cancelled: number;
+    revenueToday: { currency: string; amount: number }[];
+  };
+  today: DemandBooking[];
+  todayTotal: number;
+  upcoming: DemandBooking[];
+};
 export function useDemandBookingService() {
   const { fetchData } = useAxios();
+  const getDashboard = useCallback(async () => {
+    const result = await fetchData<DemandDashboardData>({
+      url: '/business-owners/demand-bookings/dashboard',
+      params: { utcOffsetMinutes: -new Date().getTimezoneOffset() },
+      service: false,
+    });
+    if (
+      !isApiSuccess(result.success) ||
+      !result.data?.metrics ||
+      !Array.isArray(result.data.metrics.revenueToday) ||
+      !result.data.profile?.currency ||
+      !Array.isArray(result.data?.upcoming)
+    )
+      throw new Error(result.message || 'Unable to load dashboard.');
+    return result.data;
+  }, [fetchData]);
   const getBookings = useCallback(
-    async (status: BookingStatus | 'all' = 'pending', page = 1) => {
+    async (
+      status: BookingStatus | 'all' = 'pending',
+      page = 1,
+      search = '',
+      period?: 'today',
+    ) => {
       const result = await fetchData<{
         bookings: DemandBooking[];
         pagination: { page: number; totalPages: number; total: number };
       }>({
         url: '/business-owners/demand-bookings',
-        params: { status, page, limit: 20 },
+        params: {
+          status,
+          page,
+          limit: 20,
+          ...(search ? { search } : {}),
+          ...(period
+            ? { period, utcOffsetMinutes: -new Date().getTimezoneOffset() }
+            : {}),
+        },
         service: false,
       });
       if (
@@ -89,5 +143,5 @@ export function useDemandBookingService() {
     },
     [fetchData],
   );
-  return { getBookings, getBooking, updateBooking };
+  return { getDashboard, getBookings, getBooking, updateBooking };
 }
