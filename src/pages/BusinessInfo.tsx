@@ -21,6 +21,12 @@ import CommonHeader from '../components/CommonHeader';
 import Stepper from '../components/Stepper';
 import CameraSvg from '../assets/svg/Code/CameraSvg';
 import Select from '../components/Select';
+import DemandServiceTypeSelect from '../components/DemandServiceTypeSelect';
+import {
+  validateWorkStep,
+  validateRatesStep,
+  type StepErrors,
+} from '../utils/serviceProviderValidation';
 import { languages } from '../assets/data/languages';
 import KeyboardWrapper from '../components/KeyboardWrapper';
 import ImagePickerModal from '../components/PickImage';
@@ -41,7 +47,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BusinessInfoSP'>;
 
 interface ProfileForm {
   fullName: string;
-  professionalTitle: string;
+  demandServiceTypeId: string;
   bio: string;
   language: string;
   languages: string[];
@@ -107,9 +113,8 @@ const EXPERIENCE_RANGE_OPTIONS = [
 const AVAILABILITY_OPTIONS = [
   { label: 'Full Time', value: 'FULL_TIME' },
   { label: 'Part Time', value: 'PART_TIME' },
-  { label: 'Weekends Only', value: 'WEEKENDS_ONLY' },
+  { label: 'Weekends Only', value: 'WEEKENDS' },
   { label: 'Flexible', value: 'FLEXIBLE' },
-  { label: 'On Call', value: 'ON_CALL' },
 ];
 
 const STEP_META: Record<Step, { heading: string; subHeading: string }> = {
@@ -180,8 +185,8 @@ const validateProfile = (form: ProfileForm) => {
   if (isBlank(form.fullName)) {
     errors.fullName = 'Please enter full name.';
   }
-  if (isBlank(form.professionalTitle)) {
-    errors.professionalTitle = 'Please enter professional title.';
+  if (isBlank(form.demandServiceTypeId)) {
+    errors.demandServiceTypeId = 'Please select your service type.';
   }
   if (isBlank(form.bio)) {
     errors.bio = 'Please enter about / bio.';
@@ -215,7 +220,7 @@ export default function BusinessInfoSP({ route }: Props) {
   /* Step 1 */
   const [profile, setProfile] = useState<ProfileForm>({
     fullName: '',
-    professionalTitle: '',
+    demandServiceTypeId: '',
     bio: '',
     language: '',
     languages: [],
@@ -238,6 +243,11 @@ export default function BusinessInfoSP({ route }: Props) {
     availabilityPreference: '',
     workingAreas: [makeWorkingArea()],
   });
+
+  const [workAttempted, setWorkAttempted] = useState(false);
+  const [ratesAttempted, setRatesAttempted] = useState(false);
+  const workErrors = workAttempted ? validateWorkStep(workForm) : {};
+  const ratesErrors = ratesAttempted ? validateRatesStep(ratesForm) : {};
 
   /* ── Image picker ── */
   const openPicker = (target: ActivePickerTarget) => {
@@ -399,7 +409,7 @@ export default function BusinessInfoSP({ route }: Props) {
         type: authDraft.type,
         profilePhoto: profile.profilePhoto,
         fullName: profile.fullName,
-        professionalTitle: profile.professionalTitle,
+        demandServiceTypeId: profile.demandServiceTypeId,
         about: profile.bio,
         languages: profile.languages,
       });
@@ -428,6 +438,7 @@ export default function BusinessInfoSP({ route }: Props) {
   };
 
   const buildServiceProviderPayload = (): ServiceProviderOnboardingPayload => ({
+    demandServiceTypeId: profile.demandServiceTypeId,
     workExperiences: workForm.experiences.map(experience => ({
       jobTitle: experience.jobTitle,
       companyName: experience.companyName,
@@ -457,37 +468,24 @@ export default function BusinessInfoSP({ route }: Props) {
   });
 
   const handleServiceProviderSubmit = async () => {
-    const hasExperience = workForm.experiences.every(
-      experience =>
-        experience.jobTitle &&
-        experience.companyName &&
-        experience.startDate &&
-        (experience.currentlyWorking || experience.endDate),
-    );
-    const hasEducation = workForm.educations.every(
-      education =>
-        education.title &&
-        education.institution &&
-        education.startDate &&
-        education.endDate &&
-        education.description &&
-        education.certificateUrl,
-    );
-    const hasWorkingAreas = ratesForm.workingAreas.every(
-      area => area.address && area.area && area.city && area.pinCode,
-    );
-    const hasRates =
-      ratesForm.hourlyRate.trim() !== '' &&
-      ratesForm.serviceCallCharge.trim() !== '' &&
-      ratesForm.minimumCharge.trim() !== '' &&
-      Number(ratesForm.hourlyRate) > 0 &&
-      Number(ratesForm.serviceCallCharge) >= 0 &&
-      Number(ratesForm.minimumCharge) >= 0 &&
-      ratesForm.availabilityPreference;
-
-    if (!hasExperience || !hasEducation || !hasWorkingAreas || !hasRates) {
+    if (!profile.demandServiceTypeId) {
+      setProfileErrors(prev => ({
+        ...prev,
+        demandServiceTypeId: 'Please select your service type.',
+      }));
+      showToast('Please select your service type.', 'error');
+      return;
+    }
+    if (hasErrors(validateWorkStep(workForm))) {
+      setWorkAttempted(true);
+      setCurrentStep(2);
+      showToast('Please complete the highlighted experience details.', 'error');
+      return;
+    }
+    setRatesAttempted(true);
+    if (hasErrors(validateRatesStep(ratesForm))) {
       showToast(
-        'Please complete experience, education, rates and areas.',
+        'Please complete the highlighted rates and working areas.',
         'error',
       );
       return;
@@ -522,6 +520,14 @@ export default function BusinessInfoSP({ route }: Props) {
     }
 
     if (currentStep === 2) {
+      setWorkAttempted(true);
+      if (hasErrors(validateWorkStep(workForm))) {
+        showToast(
+          'Please complete the highlighted experience details.',
+          'error',
+        );
+        return;
+      }
       setCurrentStep(3);
       return;
     }
@@ -578,6 +584,7 @@ export default function BusinessInfoSP({ route }: Props) {
           {currentStep === 2 && (
             <WorkExperienceStep
               form={workForm}
+              errors={workErrors}
               onTotalExperienceChange={val =>
                 setWorkForm(prev => ({ ...prev, totalExperience: val }))
               }
@@ -591,15 +598,25 @@ export default function BusinessInfoSP({ route }: Props) {
           )}
 
           {currentStep === 3 && (
-            <SetRatesStep
-              form={ratesForm}
-              onFormChange={(field, value) =>
-                setRatesForm(prev => ({ ...prev, [field]: value }))
-              }
-              onUpdateWorkingArea={updateWorkingArea}
-              onAddWorkingArea={addWorkingArea}
-              onRemoveWorkingArea={removeWorkingArea}
-            />
+            <>
+              <DemandServiceTypeSelect
+                value={profile.demandServiceTypeId}
+                error={profileErrors.demandServiceTypeId}
+                onChange={value =>
+                  updateProfileField('demandServiceTypeId', value)
+                }
+              />
+              <SetRatesStep
+                form={ratesForm}
+                errors={ratesErrors}
+                onFormChange={(field, value) =>
+                  setRatesForm(prev => ({ ...prev, [field]: value }))
+                }
+                onUpdateWorkingArea={updateWorkingArea}
+                onAddWorkingArea={addWorkingArea}
+                onRemoveWorkingArea={removeWorkingArea}
+              />
+            </>
           )}
 
           {/* Footer */}
@@ -680,13 +697,10 @@ function ProfileInfoStep({
         containerStyle={styles.inputSpacing}
         error={errors.fullName}
       />
-      <InputText
-        label="Professional Title"
-        placeholder="e.g. Plumber, Electrician"
-        value={form.professionalTitle}
-        onChangeText={val => onFormChange('professionalTitle', val)}
-        containerStyle={styles.inputSpacing}
-        error={errors.professionalTitle}
+      <DemandServiceTypeSelect
+        value={form.demandServiceTypeId}
+        onChange={val => onFormChange('demandServiceTypeId', val)}
+        error={errors.demandServiceTypeId}
       />
       <InputText
         label="About / Bio"
@@ -843,6 +857,7 @@ function LanguageMultiSelect({
 
 /* ─── Step 2: Work Experience ────────────────────────────────────── */
 interface WorkExperienceStepProps {
+  errors: StepErrors;
   form: WorkExperienceForm;
   onTotalExperienceChange: (val: string) => void;
   onUpdateExperience: (
@@ -862,6 +877,7 @@ interface WorkExperienceStepProps {
 }
 
 function WorkExperienceStep({
+  errors,
   form,
   onTotalExperienceChange,
   onUpdateExperience,
@@ -877,14 +893,19 @@ function WorkExperienceStep({
       <Select
         options={EXPERIENCE_RANGE_OPTIONS}
         placeholder="Select experience Range"
+        error={errors.totalExperience}
         value={form.totalExperience}
         onChange={onTotalExperienceChange}
         containerStyle={styles.selectSpacing}
       />
 
       <Text style={styles.sectionLabel}>Work Experience</Text>
+      {!!errors.experiences && (
+        <Text style={styles.errorText}>{errors.experiences}</Text>
+      )}
       {form.experiences.map(exp => (
         <ExperienceCard
+          errors={errors}
           key={exp.id}
           entry={exp}
           showRemove={form.experiences.length > 1}
@@ -900,8 +921,12 @@ function WorkExperienceStep({
       <Text style={[styles.sectionLabel, styles.sectionLabelTop]}>
         Education / Certification
       </Text>
+      {!!errors.educations && (
+        <Text style={styles.errorText}>{errors.educations}</Text>
+      )}
       {form.educations.map(edu => (
         <EducationCard
+          errors={errors}
           key={edu.id}
           entry={edu}
           onRemove={() => onRemoveEducation(edu.id)}
@@ -920,6 +945,7 @@ function WorkExperienceStep({
 
 /* ─── Step 3: Set Your Rates ─────────────────────────────────────── */
 interface SetRatesStepProps {
+  errors: StepErrors;
   form: RatesForm;
   onFormChange: (
     field: Exclude<keyof RatesForm, 'workingAreas'>,
@@ -935,6 +961,7 @@ interface SetRatesStepProps {
 }
 
 function SetRatesStep({
+  errors,
   form,
   onFormChange,
   onUpdateWorkingArea,
@@ -949,6 +976,7 @@ function SetRatesStep({
         <InputText
           label={'Hourly Rate'}
           placeholder="100.00"
+          error={errors.hourlyRate}
           value={form.hourlyRate}
           onChangeText={val => onFormChange('hourlyRate', val)}
           keyboardType="decimal-pad"
@@ -966,6 +994,7 @@ function SetRatesStep({
       <InputText
         placeholder="150.00"
         label="Service Call Charge"
+        error={errors.serviceCallCharge}
         value={form.serviceCallCharge}
         onChangeText={val => onFormChange('serviceCallCharge', val)}
         keyboardType="decimal-pad"
@@ -981,6 +1010,7 @@ function SetRatesStep({
       <InputText
         placeholder="100.00"
         label="Minimum Charge"
+        error={errors.minimumCharge}
         value={form.minimumCharge}
         onChangeText={val => onFormChange('minimumCharge', val)}
         keyboardType="decimal-pad"
@@ -997,14 +1027,19 @@ function SetRatesStep({
         label="Availability Preference"
         options={AVAILABILITY_OPTIONS}
         placeholder="Select your Availability"
+        error={errors.availabilityPreference}
         value={form.availabilityPreference}
         onChange={val => onFormChange('availabilityPreference', val)}
         containerStyle={styles.selectSpacing}
       />
 
       <Text style={styles.sectionLabel}>Working Areas</Text>
+      {!!errors.workingAreas && (
+        <Text style={styles.errorText}>{errors.workingAreas}</Text>
+      )}
       {form.workingAreas.map(area => (
         <WorkingAreaCard
+          errors={errors}
           key={area.id}
           entry={area}
           showRemove={form.workingAreas.length > 1}
@@ -1023,6 +1058,7 @@ function SetRatesStep({
 
 /* ─── Experience Card ────────────────────────────────────────────── */
 interface ExperienceCardProps {
+  errors: StepErrors;
   entry: WorkExperienceEntry;
   showRemove: boolean;
   onRemove: () => void;
@@ -1030,6 +1066,7 @@ interface ExperienceCardProps {
 }
 
 function ExperienceCard({
+  errors,
   entry,
   showRemove,
   onRemove,
@@ -1045,6 +1082,7 @@ function ExperienceCard({
       <InputText
         label="Job Title / Role"
         placeholder="Senior Electricians"
+        error={errors[`experiences.${entry.id}.jobTitle`]}
         value={entry.jobTitle}
         onChangeText={val => onChange('jobTitle', val)}
         containerStyle={styles.cardInput}
@@ -1052,6 +1090,7 @@ function ExperienceCard({
       <InputText
         label="Company / Organizations"
         placeholder="ABC Electrical Services"
+        error={errors[`experiences.${entry.id}.companyName`]}
         value={entry.companyName}
         onChangeText={val => onChange('companyName', val)}
         containerStyle={styles.cardInput}
@@ -1061,6 +1100,7 @@ function ExperienceCard({
           <DatePicker
             label="Start Date"
             placeholder="Select Date"
+            error={errors[`experiences.${entry.id}.startDate`]}
             value={entry.startDate}
             onChange={val => onChange('startDate', val)}
           />
@@ -1069,6 +1109,7 @@ function ExperienceCard({
           <DatePicker
             label="End Date"
             placeholder="Select Date"
+            error={errors[`experiences.${entry.id}.endDate`]}
             value={entry.endDate}
             onChange={val => onChange('endDate', val)}
             disabled={entry.currentlyWorking}
@@ -1096,12 +1137,18 @@ function ExperienceCard({
 
 /* ─── Education Card ─────────────────────────────────────────────── */
 interface EducationCardProps {
+  errors: StepErrors;
   entry: EducationEntry;
   onRemove: () => void;
   onChange: (field: keyof EducationEntry, value: string) => void;
 }
 
-function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
+function EducationCard({
+  entry,
+  onRemove,
+  onChange,
+  errors,
+}: EducationCardProps) {
   return (
     <View style={styles.card}>
       <TouchableOpacity style={styles.removeBtn} onPress={onRemove}>
@@ -1110,6 +1157,7 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
       <InputText
         label="Degree / Certificate"
         placeholder="e.g. B.Tech Electrical Engineering"
+        error={errors[`educations.${entry.id}.title`]}
         value={entry.title}
         onChangeText={val => onChange('title', val)}
         containerStyle={styles.cardInput}
@@ -1117,6 +1165,7 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
       <InputText
         label="Institution"
         placeholder="e.g. Delhi University"
+        error={errors[`educations.${entry.id}.institution`]}
         value={entry.institution}
         onChangeText={val => onChange('institution', val)}
         containerStyle={styles.cardInput}
@@ -1124,6 +1173,7 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
       <DatePicker
         label="Start Date"
         placeholder="Select Date"
+        error={errors[`educations.${entry.id}.startDate`]}
         value={entry.startDate}
         onChange={val => onChange('startDate', val)}
         containerStyle={styles.cardInput}
@@ -1131,6 +1181,7 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
       <DatePicker
         label="End Date"
         placeholder="Select Date"
+        error={errors[`educations.${entry.id}.endDate`]}
         value={entry.endDate}
         onChange={val => onChange('endDate', val)}
         containerStyle={styles.cardInput}
@@ -1138,6 +1189,7 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
       <InputText
         label="Description"
         placeholder="Describe your certification"
+        error={errors[`educations.${entry.id}.description`]}
         value={entry.description}
         onChangeText={val => onChange('description', val)}
         multiline
@@ -1145,8 +1197,9 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
         containerStyle={styles.cardInput}
       />
       <InputText
-        label="Certificate URL"
+        label="Certificate URL (optional)"
         placeholder="https://example.com/certificate.pdf"
+        error={errors[`educations.${entry.id}.certificateUrl`]}
         value={entry.certificateUrl}
         onChangeText={val => onChange('certificateUrl', val)}
         autoCapitalize="none"
@@ -1156,6 +1209,7 @@ function EducationCard({ entry, onRemove, onChange }: EducationCardProps) {
 }
 
 interface WorkingAreaCardProps {
+  errors: StepErrors;
   entry: WorkingAreaEntry;
   showRemove: boolean;
   onRemove: () => void;
@@ -1163,6 +1217,7 @@ interface WorkingAreaCardProps {
 }
 
 function WorkingAreaCard({
+  errors,
   entry,
   showRemove,
   onRemove,
@@ -1178,6 +1233,7 @@ function WorkingAreaCard({
       <InputText
         label="Address"
         placeholder="Downtown Dubai"
+        error={errors[`workingAreas.${entry.id}.address`]}
         value={entry.address}
         onChangeText={val => onChange('address', val)}
         containerStyle={styles.cardInput}
@@ -1185,6 +1241,7 @@ function WorkingAreaCard({
       <InputText
         label="Area"
         placeholder="Downtown"
+        error={errors[`workingAreas.${entry.id}.area`]}
         value={entry.area}
         onChangeText={val => onChange('area', val)}
         containerStyle={styles.cardInput}
@@ -1194,6 +1251,7 @@ function WorkingAreaCard({
           <InputText
             label="City"
             placeholder="Dubai"
+            error={errors[`workingAreas.${entry.id}.city`]}
             value={entry.city}
             onChangeText={val => onChange('city', val)}
           />
@@ -1202,6 +1260,7 @@ function WorkingAreaCard({
           <InputText
             label="Pin Code"
             placeholder="00000"
+            error={errors[`workingAreas.${entry.id}.pinCode`]}
             value={entry.pinCode}
             onChangeText={val => onChange('pinCode', val)}
             keyboardType="number-pad"

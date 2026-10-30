@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -13,6 +14,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import getImageUrl from '../utils/urlConvertor';
 import { colors } from '../styles/theme';
 import { scale } from '../utils/responsive';
 
@@ -22,6 +24,8 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 export interface SelectOption {
   label: string;
   value: string;
+  description?: string;
+  icon?: string;
 }
 
 export interface SelectProps {
@@ -33,6 +37,7 @@ export interface SelectProps {
 
   /** Show search input inside the sheet/modal. Default: false */
   searchable?: boolean;
+  disabled?: boolean;
 
   /** Open as full-screen modal instead of bottom sheet. Default: false */
   fullScreen?: boolean;
@@ -50,6 +55,7 @@ export default function Select({
   value,
   onChange,
   searchable = false,
+  disabled = false,
   fullScreen = false,
   containerStyle,
   labelStyle,
@@ -83,9 +89,14 @@ export default function Select({
       {/* Trigger */}
       <TouchableOpacity
         activeOpacity={0.8}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={label || placeholder}
+        accessibilityState={{ disabled, expanded: open }}
         style={[styles.trigger, error ? styles.triggerError : null]}
         onPress={() => setOpen(true)}
       >
+        {selectedOption?.icon ? <OptionIcon uri={selectedOption.icon} /> : null}
         <Text
           style={[
             styles.triggerText,
@@ -147,6 +158,26 @@ export default function Select({
 }
 
 /* ─── Sub-components ─────────────────────────────────────────────── */
+
+function OptionIcon({ uri }: { uri: string }) {
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => setFailed(false), [uri]);
+  return (
+    <View style={styles.optionIconContainer}>
+      {!failed ? (
+        <Image
+          accessibilityIgnoresInvertColors
+          source={{ uri: getImageUrl(uri) }}
+          style={styles.optionIcon}
+          resizeMode="contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Text style={styles.iconFallback}>◇</Text>
+      )}
+    </View>
+  );
+}
 
 function ModalHeader({
   title,
@@ -233,14 +264,22 @@ function OptionList({
               ]}
               onPress={() => onSelect(item)}
             >
-              <Text
-                style={[
-                  listStyles.optionText,
-                  isSelected && listStyles.optionTextSelected,
-                ]}
-              >
-                {item.label}
-              </Text>
+              {item.icon ? <OptionIcon uri={item.icon} /> : null}
+              <View style={listStyles.optionInfo}>
+                <Text
+                  style={[
+                    listStyles.optionText,
+                    isSelected && listStyles.optionTextSelected,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                {!!item.description && (
+                  <Text style={listStyles.optionDescription}>
+                    {item.description}
+                  </Text>
+                )}
+              </View>
               {isSelected && <Text style={listStyles.checkmark}>✓</Text>}
             </Pressable>
           );
@@ -252,6 +291,17 @@ function OptionList({
 
 /* ─── Styles ─────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
+  optionIconContainer: {
+    width: 36,
+    height: 36,
+    marginRight: 10,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionIcon: { width: 28, height: 28 },
+  iconFallback: { fontSize: 20, color: colors.textMuted },
   container: {
     marginBottom: 20,
   },
@@ -412,10 +462,11 @@ const listStyles = StyleSheet.create({
   optionPressed: {
     backgroundColor: colors.surfaceMuted,
   },
+  optionInfo: { flex: 1, gap: 4 },
+  optionDescription: { fontSize: 12, lineHeight: 18, color: colors.textMuted },
   optionText: {
     fontSize: 15,
     color: colors.text,
-    flex: 1,
   },
   optionTextSelected: {
     fontWeight: '700',

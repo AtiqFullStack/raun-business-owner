@@ -15,6 +15,7 @@ import { scale } from '../utils/responsive';
 
 type DatePickerProps = {
   label?: string;
+  error?: string;
   placeholder?: string;
   value?: string;
   onChange: (value: string) => void;
@@ -64,6 +65,7 @@ const getYearPageStart = (year: number) =>
 
 export default function DatePicker({
   label,
+  error,
   placeholder = 'Select Date',
   value,
   onChange,
@@ -83,7 +85,10 @@ export default function DatePicker({
 
   const yearOptions = useMemo(
     () =>
-      Array.from({ length: YEAR_PAGE_SIZE }, (_, index) => yearPageStart + index),
+      Array.from(
+        { length: YEAR_PAGE_SIZE },
+        (_, index) => yearPageStart + index,
+      ),
     [yearPageStart],
   );
 
@@ -146,7 +151,11 @@ export default function DatePicker({
         activeOpacity={0.8}
         disabled={disabled}
         onPress={openPicker}
-        style={[styles.trigger, disabled && styles.triggerDisabled]}
+        style={[
+          styles.trigger,
+          disabled && styles.triggerDisabled,
+          error && styles.triggerError,
+        ]}
       >
         <Text
           style={[
@@ -159,6 +168,11 @@ export default function DatePicker({
         </Text>
       </TouchableOpacity>
 
+      {!!error && (
+        <Text style={styles.errorText} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      )}
       <Modal
         visible={visible}
         transparent
@@ -188,10 +202,10 @@ export default function DatePicker({
               >
                 <Text style={styles.monthTitle}>
                   {showYearPicker
-                    ? `${yearPageStart} - ${
-                        yearPageStart + YEAR_PAGE_SIZE - 1
-                      }`
-                    : `${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`}
+                    ? `${yearPageStart} - ${yearPageStart + YEAR_PAGE_SIZE - 1}`
+                    : `${
+                        MONTHS[viewDate.getMonth()]
+                      } ${viewDate.getFullYear()}`}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -303,6 +317,8 @@ export default function DatePicker({
 }
 
 const styles = StyleSheet.create({
+  triggerError: { borderColor: colors.error },
+  errorText: { marginTop: 4, fontSize: 12, color: colors.error },
   wrapper: {
     marginBottom: 16,
   },

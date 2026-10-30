@@ -7,6 +7,7 @@ export type BusinessOwner = {
   role: 'BUSINESS_OWNER' | string;
   type?: string;
   businessType?: string;
+  demandServiceTypeId?: string | null;
   onboardingStatus?: string;
   isProfileCompleted?: boolean;
   verificationStatus?: string;
@@ -16,6 +17,14 @@ export type BusinessOwnerAuthResponse = {
   token?: string;
   isNewUser?: boolean;
   owner?: BusinessOwner;
+};
+
+export type DemandServiceType = {
+  _id: string;
+  icon?: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
 };
 
 export type BusinessAndCuisineType = {
@@ -54,6 +63,7 @@ export type BusinessOwnerAuthPayload = {
   businessType?: string;
   fullName?: string;
   professionalTitle?: string;
+  demandServiceTypeId?: string;
   about?: string;
   languages?: string[];
   address?: string;
@@ -80,6 +90,7 @@ export type BusinessDocumentsPayload = {
 };
 
 export type ServiceProviderOnboardingPayload = {
+  demandServiceTypeId: string;
   workExperiences: {
     jobTitle: string;
     companyName: string;
@@ -193,6 +204,20 @@ export const useBusinessOwnerService = () => {
     [fetchData],
   );
 
+  const getDemandServiceTypes = useCallback(async () => {
+    const response = await fetchData<{ serviceTypes: DemandServiceType[] }>({
+      url: '/business-owners/demand-service-types',
+      method: 'GET',
+      service: false,
+    });
+    if (
+      !isApiSuccess(response.success) ||
+      !Array.isArray(response.data?.serviceTypes)
+    )
+      throw new Error(response.message || 'Unable to load service types.');
+    return response.data.serviceTypes.filter(item => item.isActive);
+  }, [fetchData]);
+
   const getBusinessAndCuisineTypes = useCallback(() => {
     return fetchData<BusinessAndCuisineTypesResponse>({
       url: '/admin/business-owners/types',
@@ -240,6 +265,7 @@ export const useBusinessOwnerService = () => {
   return {
     authenticateOwner,
     getBusinessAndCuisineTypes,
+    getDemandServiceTypes,
     updateBusinessHours,
     updateBusinessDocuments,
     updateServiceProviderOnboarding,

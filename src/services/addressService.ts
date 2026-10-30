@@ -60,7 +60,7 @@ export const useAddressService = () => {
 
   const getAddresses = useCallback(() => {
     return fetchData<AddressesResponse>({
-      url: '/api/user/addresses',
+      url: '/user/addresses',
       method: 'GET',
       service: false,
     });
@@ -69,7 +69,7 @@ export const useAddressService = () => {
   const createAddress = useCallback(
     (data: AddressPayload) => {
       return fetchData<AddressResponse>({
-        url: '/api/user/addresses',
+        url: '/user/addresses',
         method: 'POST',
         data,
         service: false,
@@ -81,7 +81,7 @@ export const useAddressService = () => {
   const saveCurrentLocation = useCallback(
     (data: AddressPayload) => {
       return fetchData<AddressResponse>({
-        url: '/api/user/addresses/current',
+        url: '/user/addresses/current',
         method: 'POST',
         data,
         service: false,
@@ -93,7 +93,7 @@ export const useAddressService = () => {
   const updateAddress = useCallback(
     (addressId: string, data: AddressPayload) => {
       return fetchData<AddressResponse>({
-        url: `/api/user/addresses/${addressId}`,
+        url: `/user/addresses/${addressId}`,
         method: 'PATCH',
         data,
         service: false,
@@ -105,7 +105,7 @@ export const useAddressService = () => {
   const setDefaultAddress = useCallback(
     (addressId: string) => {
       return fetchData<AddressResponse>({
-        url: `/api/user/addresses/${addressId}/default`,
+        url: `/user/addresses/${addressId}/default`,
         method: 'PATCH',
         service: false,
       });
@@ -116,7 +116,7 @@ export const useAddressService = () => {
   const deleteAddress = useCallback(
     (addressId: string) => {
       return fetchData<AddressResponse>({
-        url: `/api/user/addresses/${addressId}`,
+        url: `/user/addresses/${addressId}`,
         method: 'DELETE',
         service: false,
       });

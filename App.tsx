@@ -11,8 +11,6 @@ import { colors } from './src/styles/theme';
 import Toaster from './src/components/Toaster';
 import useLocation from './src/hooks/useLocation';
 import { useAuth } from './src/store/useAuth';
-import { useLocationStore } from './src/store/useLocationStore';
-import { useAddressService } from './src/services/addressService';
 
 export default function App() {
   return (
@@ -25,35 +23,17 @@ export default function App() {
 function AppContent() {
   const insets = useSafeAreaInsets();
   const { getPhysicalLocations } = useLocation();
-  const { getAddresses } = useAddressService();
   const hasHydrated = useAuth(state => state.hasHydrated);
-  const token = useAuth(state => state.token);
-  const setAddresses = useLocationStore(state => state.setAddresses);
 
   useEffect(() => {
     if (!hasHydrated) {
       return;
     }
 
-    if (!token) {
-      getPhysicalLocations();
-      return;
-    }
-
-    getAddresses()
-      .then(response => {
-        const savedAddresses = response.data.addresses;
-
-        setAddresses(savedAddresses);
-
-        if (savedAddresses.length === 0) {
-          getPhysicalLocations();
-        }
-      })
-      .catch(() => {
-        getPhysicalLocations();
-      });
-  }, [getAddresses, getPhysicalLocations, hasHydrated, setAddresses, token]);
+    // Owner registration uses its own address/working-area fields. Do not call
+    // customer address APIs when an owner token is created during onboarding.
+    getPhysicalLocations();
+  }, [getPhysicalLocations, hasHydrated]);
 
   return (
     <View
