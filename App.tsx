@@ -1,3 +1,5 @@
+import useOwnerRealtime from './src/hooks/useOwnerRealtime';
+import { flushDemandNotification } from './src/services/demandNotificationNavigation';
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -21,6 +23,7 @@ export default function App() {
 }
 
 function AppContent() {
+  useOwnerRealtime();
   const insets = useSafeAreaInsets();
   const { getPhysicalLocations } = useLocation();
   const hasHydrated = useAuth(state => state.hasHydrated);
@@ -45,7 +48,11 @@ function AppContent() {
         },
       ]}
     >
-      <NavigationContainer ref={navigationRef}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={flushDemandNotification}
+        onStateChange={flushDemandNotification}
+      >
         <RootStack />
       </NavigationContainer>
       <Toaster />

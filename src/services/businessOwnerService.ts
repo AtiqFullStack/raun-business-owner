@@ -3,6 +3,7 @@ import useAxios from '../hooks/useAxios';
 
 export type BusinessOwner = {
   _id: string;
+  userAuthId?: string | null;
   email: string;
   role: 'BUSINESS_OWNER' | string;
   type?: string;

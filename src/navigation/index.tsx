@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { MainTabParamList } from '../routes/TabNavigation';
 import * as React from 'react';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -22,7 +24,7 @@ import BusinessSelector from '../pages/BusinessSelector';
 export type RootStackParamList = {
   splash: undefined;
   login: undefined;
-  app: undefined;
+  app: NavigatorScreenParams<MainTabParamList> | undefined;
   PopularRestaurants: { categoryTitle?: string } | undefined;
   SelectLocation: undefined;
   tellBusiness:

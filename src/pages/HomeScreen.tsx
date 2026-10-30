@@ -1,3 +1,4 @@
+import DemandDashboard from './DemandDashboard';
 import React from 'react';
 import {
   ScrollView,
@@ -76,7 +77,7 @@ const BOOKINGS = [
   },
 ];
 
-export default function OwnerDashboard() {
+function BusinessHomeScreen() {
   const insets = useSafeAreaInsets();
   const logout = useAuth(state => state.logout);
 
@@ -370,3 +371,12 @@ const styles = StyleSheet.create({
   bookingTitle: { color: '#303030', fontSize: 9, lineHeight: 14 },
   bookingTime: { color: '#303030', fontSize: 9, lineHeight: 14 },
 });
+
+export default function HomeScreen() {
+  const ownerType = useAuth(state => state.ownerType);
+  return ownerType === 'SERVICE_PROVIDER' ? (
+    <DemandDashboard />
+  ) : (
+    <BusinessHomeScreen />
+  );
+}

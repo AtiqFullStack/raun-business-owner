@@ -77,6 +77,7 @@ type DocumentFormErrors = Partial<Record<keyof DocumentForm, string>>;
 
 const buildOwnerUser = (owner: BusinessOwner) => ({
   id: owner._id,
+  userAuthId: owner.userAuthId || undefined,
   name: owner.email,
   email: owner.email,
   role: owner.role,

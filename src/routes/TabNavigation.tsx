@@ -1,8 +1,10 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View } from 'react-native';
 import { HomeSvg, OrderSvg, ProfileSvg, BellSvg } from '../assets/svg';
 import { colors } from '../styles/theme';
+import OwnerNotifications from '../pages/OwnerNotifications';
 import BookingScreen from '../pages/BookingScreen';
 import BookingDetailsScreen from '../pages/BookingDetailsScreen';
 import Profile from '../pages/Profile';
@@ -11,9 +13,9 @@ import MyCards from '../pages/MyCards';
 import SelectLocation from '../pages/SelectLocation';
 import HomeScreen from '../pages/HomeScreen';
 
-type MainTabParamList = {
+export type MainTabParamList = {
   Home: undefined;
-  MyBookings: undefined;
+  MyBookings: NavigatorScreenParams<BookingStackParamList> | undefined;
   Notification: undefined;
   Account: undefined;
 };
@@ -32,7 +34,15 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const BookingStack = createNativeStackNavigator<BookingStackParamList>();
 const AccountStack = createNativeStackNavigator<AccountStackParamList>();
 
-function TabLabel({ label, focused, color }: { label: string; focused: boolean; color: string }) {
+function TabLabel({
+  label,
+  focused,
+  color,
+}: {
+  label: string;
+  focused: boolean;
+  color: string;
+}) {
   return (
     <View style={styles.labelContainer}>
       <Text style={[styles.tabLabel, { color }]}>{label}</Text>
@@ -50,13 +60,6 @@ function BookingTab() {
         component={BookingDetailsScreen}
       />
     </BookingStack.Navigator>
-  );
-}
-function NotificationTab() {
-  return (
-    <View style={styles.emptyScreen}>
-      <Text style={styles.emptyText}>Notification</Text>
-    </View>
   );
 }
 function AccountTab() {
@@ -87,10 +90,10 @@ export default function MainStack() {
         name="Home"
         component={HomeScreen}
         options={{
-          tabBarLabel: ({ focused, color }) => <TabLabel label="Home" focused={focused} color={color} />,
-          tabBarIcon: ({ color }) => (
-            <HomeSvg color={color} />
+          tabBarLabel: ({ focused, color }) => (
+            <TabLabel label="Home" focused={focused} color={color} />
           ),
+          tabBarIcon: ({ color }) => <HomeSvg color={color} />,
         }}
       />
       <Tab.Screen
@@ -98,30 +101,30 @@ export default function MainStack() {
         component={BookingTab}
         options={{
           title: 'My Bookings',
-          tabBarLabel: ({ focused, color }) => <TabLabel label="My Bookings" focused={focused} color={color} />,
-          tabBarIcon: ({ color }) => (
-            <OrderSvg color={color} />
+          tabBarLabel: ({ focused, color }) => (
+            <TabLabel label="My Bookings" focused={focused} color={color} />
           ),
+          tabBarIcon: ({ color }) => <OrderSvg color={color} />,
         }}
       />
       <Tab.Screen
         name="Notification"
-        component={NotificationTab}
+        component={OwnerNotifications}
         options={{
-          tabBarLabel: ({ focused, color }) => <TabLabel label="Notification" focused={focused} color={color} />,
-          tabBarIcon: ({ color }) => (
-            <BellSvg color={color} />
+          tabBarLabel: ({ focused, color }) => (
+            <TabLabel label="Notification" focused={focused} color={color} />
           ),
+          tabBarIcon: ({ color }) => <BellSvg color={color} />,
         }}
       />
       <Tab.Screen
         name="Account"
         component={AccountTab}
         options={{
-          tabBarLabel: ({ focused, color }) => <TabLabel label="Account" focused={focused} color={color} />,
-          tabBarIcon: ({ color }) => (
-            <ProfileSvg color={color} />
+          tabBarLabel: ({ focused, color }) => (
+            <TabLabel label="Account" focused={focused} color={color} />
           ),
+          tabBarIcon: ({ color }) => <ProfileSvg color={color} />,
         }}
       />
     </Tab.Navigator>
@@ -145,9 +148,21 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   tabItem: { height: 58 },
-  labelContainer: { alignItems: 'center', justifyContent: 'center', width: '100%' },
+  labelContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
   tabLabel: { fontSize: 11, fontWeight: '500' },
-  activeIndicator: { position: 'absolute', top: 20, width: 62, height: 8, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: colors.secondaryDark },
+  activeIndicator: {
+    position: 'absolute',
+    top: 20,
+    width: 62,
+    height: 8,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    backgroundColor: colors.secondaryDark,
+  },
   emptyScreen: {
     flex: 1,
     alignItems: 'center',

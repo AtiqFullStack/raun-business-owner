@@ -1,3 +1,10 @@
+jest.mock('../src/hooks/useOwnerRealtime', () => ({
+  __esModule: true,
+  default: () => {},
+}));
+jest.mock('../src/services/demandNotificationNavigation', () => ({
+  flushDemandNotification: jest.fn(),
+}));
 /**
  * @format
  */
