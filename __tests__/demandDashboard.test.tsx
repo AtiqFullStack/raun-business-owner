@@ -119,7 +119,7 @@ test('Service Provider dashboard shows six real metrics, today requests and noti
     'Cancelled',
     'Upcoming Booking',
     'Pending Customer',
-    'BND 30.00',
+    'B$ 30.00',
   ])
     expect(text()).toContain(label);
   expect(text()).not.toContain('20%');

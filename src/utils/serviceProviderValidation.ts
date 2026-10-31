@@ -1,3 +1,6 @@
+import { isSupportedCurrency } from './currency';
+import { availabilityError } from './ownerAvailability';
+import type { BusinessHourPayload } from '../services/businessOwnerService';
 export type StepErrors = Record<string, string>;
 
 type Experience = {
@@ -18,6 +21,7 @@ type Education = {
 };
 type Area = {
   id: string;
+  coordinates?: { latitude: number; longitude: number } | null;
   address: string;
   area: string;
   city: string;
@@ -47,25 +51,20 @@ export function calculateTotalExperienceYears(
   const today = new Date(
     Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate()),
   ).getTime();
-  const intervals = experiences
-    .map(experience => ({
-      start: dateValue(experience.startDate),
-      end: experience.currentlyWorking
-        ? today
-        : dateValue(experience.endDate),
-    }));
-  const isValidInterval = (
-    interval: { start: number | null; end: number | null },
-  ): interval is { start: number; end: number } =>
+  const intervals = experiences.map(experience => ({
+    start: dateValue(experience.startDate),
+    end: experience.currentlyWorking ? today : dateValue(experience.endDate),
+  }));
+  const isValidInterval = (interval: {
+    start: number | null;
+    end: number | null;
+  }): interval is { start: number; end: number } =>
     interval.start !== null &&
     interval.end !== null &&
     interval.end >= interval.start;
   const validIntervals = intervals.filter(isValidInterval);
 
-  if (
-    !intervals.length ||
-    validIntervals.length !== intervals.length
-  )
+  if (!intervals.length || validIntervals.length !== intervals.length)
     return null;
 
   validIntervals.sort((left, right) => left.start - right.start);
@@ -87,9 +86,7 @@ export function calculateTotalExperienceYears(
   }
 
   return (
-    Math.round(
-      (totalMilliseconds / (365.2425 * 24 * 60 * 60 * 1000)) * 10,
-    ) / 10
+    Math.round((totalMilliseconds / (365.2425 * 24 * 60 * 60 * 1000)) * 10) / 10
   );
 }
 
@@ -159,11 +156,13 @@ export const PROVIDER_AVAILABILITY = [
   'FLEXIBLE',
 ];
 export function validateRatesStep(form: {
+  currency?: string;
   hourlyRate: string;
   serviceCallCharge: string;
   minimumCharge: string;
   availabilityPreference: string;
   workingAreas: Area[];
+  availabilitySchedule?: BusinessHourPayload[];
 }): StepErrors {
   const errors: StepErrors = {};
   for (const field of [
@@ -186,15 +185,35 @@ export function validateRatesStep(form: {
   }
   if (!PROVIDER_AVAILABILITY.includes(form.availabilityPreference))
     errors.availabilityPreference = 'Please select your availability.';
+  if (form.availabilitySchedule) {
+    const error = availabilityError(form.availabilitySchedule);
+    if (error) errors.availabilitySchedule = error;
+  }
   if (!form.workingAreas.length)
     errors.workingAreas = 'Please add at least one working area.';
+  if (form.currency !== undefined && !isSupportedCurrency(form.currency))
+    errors.currency = 'Please select a valid currency.';
+  const seenAreas = new Set<string>();
   form.workingAreas.forEach(entry => {
-    for (const field of ['address', 'area', 'city', 'pinCode'] as const) {
+    if (
+      'coordinates' in entry &&
+      (!entry.coordinates ||
+        !Number.isFinite(entry.coordinates.latitude) ||
+        !Number.isFinite(entry.coordinates.longitude))
+    )
+      errors[`workingAreas.${entry.id}.coordinates`] =
+        'Select an area from Google search.';
+    const key = `${entry.city.trim()}:${entry.area.trim()}:${
+      entry.coordinates?.latitude
+    }:${entry.coordinates?.longitude}`.toLowerCase();
+    if (entry.city.trim() && entry.area.trim() && seenAreas.has(key))
+      errors[`workingAreas.${entry.id}.area`] =
+        'This working area is already selected.';
+    seenAreas.add(key);
+    for (const field of ['address', 'area', 'city'] as const) {
       if (!entry[field].trim())
         errors[`workingAreas.${entry.id}.${field}`] = `Please enter ${
-          field === 'pinCode'
-            ? 'a pin code'
-            : field === 'address'
+          field === 'address'
             ? 'an address'
             : field === 'area'
             ? 'an area'

@@ -1,3 +1,10 @@
+jest.mock('lucide-react-native', () =>
+  Object.fromEntries(
+    ['ArrowUpRight', 'Check', 'ChevronRight', 'MapPin', 'Search', 'X'].map(
+      name => [name, () => null],
+    ),
+  ),
+);
 jest.mock('../src/navigation/navigationRef', () => ({ navigate: jest.fn() }));
 jest.mock('../src/store/useAuth', () => ({
   useAuth: (select: any) => select({ login: mockLogin }),
@@ -202,9 +209,11 @@ test('step 3 displays rate and working-area errors locally and submits only afte
   const area = ratesStep().props.form.workingAreas[0].id;
   expect(ratesStep().props.errors[`workingAreas.${area}.city`]).toBeDefined();
   expect(mockOnboard).not.toHaveBeenCalled();
+  expect(ratesStep().props.form.currency).toBe('BND');
   const step = ratesStep();
   await act(async () => {
     for (const [field, value] of Object.entries({
+      currency: 'SGD',
       hourlyRate: '25',
       serviceCallCharge: '0',
       minimumCharge: '0',
@@ -219,11 +228,18 @@ test('step 3 displays rate and working-area errors locally and submits only afte
     }))
       step.props.onUpdateWorkingArea(area, field, value);
   });
+  await act(async () =>
+    ratesStep().props.onUpdateWorkingArea(area, 'coordinates', {
+      latitude: 4.9,
+      longitude: 114.9,
+    }),
+  );
   expect(ratesStep().props.errors).toEqual({});
   mockOnboard.mockResolvedValueOnce({ success: true });
   await next();
   expect(mockOnboard).toHaveBeenCalledWith(
     expect.objectContaining({
+      currency: 'SGD',
       hourlyRate: 25,
       serviceCallCharge: 0,
       minimumCharge: 0,

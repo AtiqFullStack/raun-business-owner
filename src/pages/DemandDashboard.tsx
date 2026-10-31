@@ -1,3 +1,4 @@
+import { formatMoney } from '../utils/currency';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -55,9 +56,9 @@ export default function DemandDashboard() {
   const revenue = metrics
     ? metrics.revenueToday.length
       ? metrics.revenueToday
-          .map(item => `${item.currency} ${item.amount.toFixed(2)}`)
+          .map(item => formatMoney(item.amount, item.currency))
           .join('\n')
-      : `${data!.profile.currency} 0.00`
+      : formatMoney(0, data!.profile.currency)
     : '—';
   const today = period === 'today';
   const bookings = (today ? data?.today : data?.upcoming) || [];

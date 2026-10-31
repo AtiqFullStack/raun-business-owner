@@ -168,7 +168,7 @@ test('detail loads actual booking, instructions, amount, payment state and accep
   });
   expect(mockGetBooking).toHaveBeenCalledWith('booking');
   expect(text()).toContain('Call on arrival');
-  expect(text()).toContain('BND 30.00');
+  expect(text()).toContain('B$ 30.00');
   expect(text()).toContain('Unpaid');
   await press('Accept');
   expect(mockUpdateBooking).toHaveBeenCalledWith('booking', 'accept');

@@ -1,3 +1,8 @@
+import {
+  CURRENCY_OPTIONS,
+  DEFAULT_CURRENCY,
+  currencyLabel,
+} from '../utils/currency';
 import React, { useState } from 'react';
 import {
   Image,
@@ -21,6 +26,14 @@ import CommonHeader from '../components/CommonHeader';
 import Stepper from '../components/Stepper';
 import CameraSvg from '../assets/svg/Code/CameraSvg';
 import Select from '../components/Select';
+import OwnerAddressFields from '../components/OwnerAddressFields';
+import OwnerAvailability from '../components/OwnerAvailability';
+import type { MapCoordinates } from '../components/Map';
+import {
+  defaultAvailability,
+  availabilityError,
+} from '../utils/ownerAvailability';
+import type { BusinessHourPayload } from '../services/businessOwnerService';
 import DemandServiceTypeSelect from '../components/DemandServiceTypeSelect';
 import {
   validateWorkStep,
@@ -86,14 +99,18 @@ interface WorkExperienceForm {
 }
 
 interface RatesForm {
+  currency: string;
   hourlyRate: string;
   serviceCallCharge: string;
   minimumCharge: string;
   availabilityPreference: string;
   workingAreas: WorkingAreaEntry[];
+  availabilitySchedule: BusinessHourPayload[];
+  availabilityTimezone: string;
 }
 
 interface WorkingAreaEntry {
+  coordinates?: MapCoordinates | null;
   id: string;
   address: string;
   area: string;
@@ -157,6 +174,7 @@ const makeEducation = (): EducationEntry => ({
 });
 
 const makeWorkingArea = (): WorkingAreaEntry => ({
+  coordinates: null,
   id: Date.now().toString() + Math.random(),
   address: '',
   area: '',
@@ -173,7 +191,7 @@ const buildOwnerUser = (owner: BusinessOwner) => ({
   profileDetails: {
     firstName: '',
     lastName: '',
-    phoneNumber: '',
+    phoneNumber: owner.phoneNumber || '',
     email: owner.email,
     role: owner.role,
   },
@@ -242,10 +260,14 @@ export default function BusinessInfoSP({ route }: Props) {
 
   /* Step 3 */
   const [ratesForm, setRatesForm] = useState<RatesForm>({
+    currency: DEFAULT_CURRENCY,
     hourlyRate: '',
     serviceCallCharge: '',
     minimumCharge: '',
     availabilityPreference: '',
+    availabilitySchedule: defaultAvailability(),
+    availabilityTimezone:
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     workingAreas: [makeWorkingArea()],
   });
 
@@ -339,7 +361,7 @@ export default function BusinessInfoSP({ route }: Props) {
   const updateWorkingArea = (
     id: string,
     field: keyof WorkingAreaEntry,
-    value: string,
+    value: string | MapCoordinates | null,
   ) =>
     setRatesForm(prev => ({
       ...prev,
@@ -411,6 +433,7 @@ export default function BusinessInfoSP({ route }: Props) {
       const response = await authenticateOwner({
         email: authDraft.email,
         password: authDraft.password,
+        phoneNumber: authDraft.phoneNumber,
         type: authDraft.type,
         profilePhoto: profile.profilePhoto,
         fullName: profile.fullName,
@@ -442,45 +465,57 @@ export default function BusinessInfoSP({ route }: Props) {
     }
   };
 
-  const buildServiceProviderPayload =
-    (): ServiceProviderOnboardingPayload => {
-      if (!isExperienceRange(workForm.totalExperience)) {
-        throw new Error('Please select your experience range.');
-      }
+  const buildServiceProviderPayload = (): ServiceProviderOnboardingPayload => {
+    if (!isExperienceRange(workForm.totalExperience)) {
+      throw new Error('Please select your experience range.');
+    }
 
-      return {
-        demandServiceTypeId: profile.demandServiceTypeId,
-        totalExperienceRange: workForm.totalExperience,
-        workExperiences: workForm.experiences.map(experience => ({
-          jobTitle: experience.jobTitle,
-          companyName: experience.companyName,
-          startDate: experience.startDate,
-          endDate: experience.currentlyWorking
-            ? null
-            : experience.endDate || null,
-          currentlyWorking: experience.currentlyWorking,
-        })),
-        educationCertifications: workForm.educations.map(education => ({
-          title: education.title,
-          institution: education.institution,
-          startDate: education.startDate,
-          endDate: education.endDate,
-          description: education.description,
-          certificateUrl: education.certificateUrl,
-        })),
-        hourlyRate: Number(ratesForm.hourlyRate),
-        serviceCallCharge: Number(ratesForm.serviceCallCharge),
-        minimumCharge: Number(ratesForm.minimumCharge),
-        currency: 'AED',
-        availabilityPreference: ratesForm.availabilityPreference,
-        workingAreas: ratesForm.workingAreas.map(area => ({
-          address: area.address,
-          area: area.area,
-          city: area.city,
-          pinCode: area.pinCode,
-        })),
-      };
+    return {
+      demandServiceTypeId: profile.demandServiceTypeId,
+      totalExperienceRange: workForm.totalExperience,
+      workExperiences: workForm.experiences.map(experience => ({
+        jobTitle: experience.jobTitle,
+        companyName: experience.companyName,
+        startDate: experience.startDate,
+        endDate: experience.currentlyWorking
+          ? null
+          : experience.endDate || null,
+        currentlyWorking: experience.currentlyWorking,
+      })),
+      educationCertifications: workForm.educations.map(education => ({
+        title: education.title,
+        institution: education.institution,
+        startDate: education.startDate,
+        endDate: education.endDate,
+        description: education.description,
+        certificateUrl: education.certificateUrl,
+      })),
+      hourlyRate: Number(ratesForm.hourlyRate),
+      serviceCallCharge: Number(ratesForm.serviceCallCharge),
+      minimumCharge: Number(ratesForm.minimumCharge),
+      currency: ratesForm.currency,
+      availabilityPreference: ratesForm.availabilityPreference,
+      availabilitySchedule: ratesForm.availabilitySchedule,
+      availabilityTimezone: ratesForm.availabilityTimezone,
+      workingAreas: ratesForm.workingAreas.map(area => ({
+        address: area.address,
+        area: area.area,
+        city: area.city,
+        pinCode: area.pinCode,
+        ...(area.coordinates
+          ? {
+              location: {
+                type: 'Point' as const,
+                coordinates: [
+                  area.coordinates.longitude,
+                  area.coordinates.latitude,
+                ] as [number, number],
+              },
+            }
+          : {}),
+      })),
     };
+  };
 
   const handleServiceProviderSubmit = async () => {
     if (!profile.demandServiceTypeId) {
@@ -974,12 +1009,12 @@ interface SetRatesStepProps {
   form: RatesForm;
   onFormChange: (
     field: Exclude<keyof RatesForm, 'workingAreas'>,
-    value: string,
+    value: string | BusinessHourPayload[],
   ) => void;
   onUpdateWorkingArea: (
     id: string,
     field: keyof WorkingAreaEntry,
-    value: string,
+    value: string | MapCoordinates | null,
   ) => void;
   onAddWorkingArea: () => void;
   onRemoveWorkingArea: (id: string) => void;
@@ -995,6 +1030,15 @@ function SetRatesStep({
 }: SetRatesStepProps) {
   return (
     <View style={styles.stepWrapper}>
+      <Select
+        label="Currency"
+        placeholder="Select currency"
+        searchable
+        options={CURRENCY_OPTIONS}
+        value={form.currency}
+        onChange={value => onFormChange('currency', value)}
+        error={errors.currency}
+      />
       {/* Hourly Rate */}
 
       <View style={styles.rateInputWrapper}>
@@ -1007,7 +1051,9 @@ function SetRatesStep({
           keyboardType="decimal-pad"
           leftIcon={
             <View>
-              <Text style={styles.currencyText}>AED</Text>
+              <Text style={styles.currencyText}>
+                {currencyLabel(form.currency)}
+              </Text>
             </View>
           }
           rightIcon={<Text style={styles.rightText}>Per Hour</Text>}
@@ -1025,7 +1071,9 @@ function SetRatesStep({
         keyboardType="decimal-pad"
         leftIcon={
           <View>
-            <Text style={styles.currencyText}>AED</Text>
+            <Text style={styles.currencyText}>
+              {currencyLabel(form.currency)}
+            </Text>
           </View>
         }
         rightIcon={<Text style={styles.rightText}>Per Visit</Text>}
@@ -1041,7 +1089,9 @@ function SetRatesStep({
         keyboardType="decimal-pad"
         leftIcon={
           <View>
-            <Text style={styles.currencyText}>AED</Text>
+            <Text style={styles.currencyText}>
+              {currencyLabel(form.currency)}
+            </Text>
           </View>
         }
         rightIcon={<Text style={styles.rightText}>Per Job</Text>}
@@ -1050,15 +1100,43 @@ function SetRatesStep({
       {/* Availability Preference */}
       <Select
         label="Availability Preference"
-        options={AVAILABILITY_OPTIONS}
+        options={AVAILABILITY_OPTIONS.map(option => ({
+          ...option,
+          description:
+            option.value === 'FULL_TIME'
+              ? 'Regular working days — adjust hours below'
+              : option.value === 'PART_TIME'
+              ? 'Shorter working hours — adjust below'
+              : option.value === 'WEEKENDS'
+              ? 'Saturday and Sunday — adjust hours below'
+              : 'Choose your own days and hours below',
+        }))}
         placeholder="Select your Availability"
         error={errors.availabilityPreference}
         value={form.availabilityPreference}
-        onChange={val => onFormChange('availabilityPreference', val)}
+        onChange={val => {
+          onFormChange('availabilityPreference', val);
+          if (val !== 'FLEXIBLE')
+            onFormChange('availabilitySchedule', defaultAvailability(val));
+        }}
         containerStyle={styles.selectSpacing}
       />
 
+      <OwnerAvailability
+        value={form.availabilitySchedule}
+        timezone={form.availabilityTimezone}
+        onTimezoneChange={value => onFormChange('availabilityTimezone', value)}
+        onChange={value => onFormChange('availabilitySchedule', value)}
+        error={
+          errors.availabilitySchedule ||
+          availabilityError(form.availabilitySchedule)
+        }
+      />
       <Text style={styles.sectionLabel}>Working Areas</Text>
+      <Text style={{ color: colors.textMuted, marginBottom: 14 }}>
+        Add all the areas you serve, including areas in different cities or
+        countries.
+      </Text>
       {!!errors.workingAreas && (
         <Text style={styles.errorText}>{errors.workingAreas}</Text>
       )}
@@ -1238,7 +1316,10 @@ interface WorkingAreaCardProps {
   entry: WorkingAreaEntry;
   showRemove: boolean;
   onRemove: () => void;
-  onChange: (field: keyof WorkingAreaEntry, value: string) => void;
+  onChange: (
+    field: keyof WorkingAreaEntry,
+    value: string | MapCoordinates | null,
+  ) => void;
 }
 
 function WorkingAreaCard({
@@ -1255,43 +1336,17 @@ function WorkingAreaCard({
           <Text style={styles.removeBtnText}>✕</Text>
         </TouchableOpacity>
       )}
-      <InputText
-        label="Address"
-        placeholder="Downtown Dubai"
-        error={errors[`workingAreas.${entry.id}.address`]}
-        value={entry.address}
-        onChangeText={val => onChange('address', val)}
-        containerStyle={styles.cardInput}
+      <OwnerAddressFields
+        value={entry}
+        errors={{
+          address: errors[`workingAreas.${entry.id}.address`],
+          area: errors[`workingAreas.${entry.id}.area`],
+          city: errors[`workingAreas.${entry.id}.city`],
+          coordinates: errors[`workingAreas.${entry.id}.coordinates`],
+        }}
+        onChange={onChange}
+        onCoordinatesChange={value => onChange('coordinates', value)}
       />
-      <InputText
-        label="Area"
-        placeholder="Downtown"
-        error={errors[`workingAreas.${entry.id}.area`]}
-        value={entry.area}
-        onChangeText={val => onChange('area', val)}
-        containerStyle={styles.cardInput}
-      />
-      <View style={styles.dateRow}>
-        <View style={styles.dateInputWrapper}>
-          <InputText
-            label="City"
-            placeholder="Dubai"
-            error={errors[`workingAreas.${entry.id}.city`]}
-            value={entry.city}
-            onChangeText={val => onChange('city', val)}
-          />
-        </View>
-        <View style={styles.dateInputWrapper}>
-          <InputText
-            label="Pin Code"
-            placeholder="00000"
-            error={errors[`workingAreas.${entry.id}.pinCode`]}
-            value={entry.pinCode}
-            onChangeText={val => onChange('pinCode', val)}
-            keyboardType="number-pad"
-          />
-        </View>
-      </View>
     </View>
   );
 }

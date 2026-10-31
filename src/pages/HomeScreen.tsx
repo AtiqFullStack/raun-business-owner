@@ -25,7 +25,7 @@ const ORDERS = [
   {
     id: '#ORD1236',
     customer: 'Sara Ali',
-    details: '5 Items . AED 120',
+    details: '5 Items . B$ 120',
     time: '2 Min ago',
     initials: 'SA',
     tint: '#E7D1DF',
@@ -33,7 +33,7 @@ const ORDERS = [
   {
     id: '#ORD1236',
     customer: 'Sara Ali',
-    details: '5 Items . AED 120',
+    details: '5 Items . B$ 120',
     time: '2 Min ago',
     initials: 'SA',
     tint: '#FFF0C9',
@@ -41,7 +41,7 @@ const ORDERS = [
   {
     id: '#ORD1236',
     customer: 'Sara Ali',
-    details: '5 Items . AED 120',
+    details: '5 Items . B$ 120',
     time: '2 Min ago',
     initials: 'SA',
     tint: '#D6E5E8',
@@ -49,7 +49,7 @@ const ORDERS = [
   {
     id: '#ORD1236',
     customer: 'Sara Ali',
-    details: '5 Items . AED 120',
+    details: '5 Items . B$ 120',
     time: '2 Min ago',
     initials: 'SA',
     tint: '#ECD8E5',

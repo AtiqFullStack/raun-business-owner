@@ -32,6 +32,7 @@ export type RootStackParamList = {
         authDraft?: {
           email: string;
           password: string;
+          phoneNumber?: string;
         };
       }
     | undefined;
@@ -51,6 +52,7 @@ export type RootStackParamList = {
         authDraft?: {
           email: string;
           password: string;
+          phoneNumber?: string;
           type: string;
         };
       }
@@ -61,6 +63,7 @@ export type RootStackParamList = {
         authDraft?: {
           email: string;
           password: string;
+          phoneNumber?: string;
           type: string;
         };
       }

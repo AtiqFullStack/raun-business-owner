@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View ,TouchableOpacity} from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import React, { useState } from 'react';
 import { colors } from '../styles/theme';
 import Logo from '../assets/svg/Code/Logo';
@@ -27,7 +27,7 @@ const buildOwnerUser = (owner: BusinessOwner) => ({
   profileDetails: {
     firstName: '',
     lastName: '',
-    phoneNumber: '',
+    phoneNumber: owner.phoneNumber || '',
     email: owner.email,
     role: owner.role,
   },
@@ -70,11 +70,16 @@ const getResponseIsProfileCompleted = (response?: {
   response?.data?.owner?.isProfileCompleted ??
   response?.data?.isProfileCompleted;
 
-const goToSelector = (email: string, password: string) => {
+const goToSelector = (
+  email: string,
+  password: string,
+  phoneNumber?: string,
+) => {
   resetTo('tellBusiness', {
     authDraft: {
       email,
       password,
+      phoneNumber,
     },
   });
 };
@@ -84,9 +89,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type LoginFieldErrors = {
   email?: string;
   password?: string;
+  phoneNumber?: string;
 };
 
 export default function Login() {
+  const [isSignup, setIsSignup] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
@@ -110,11 +118,26 @@ export default function Login() {
       nextFieldErrors.password = 'Password is required.';
     }
 
+    const normalizedPhone = phoneNumber.trim();
+    if (isSignup && !/^\d{7,10}$/.test(normalizedPhone)) {
+      nextFieldErrors.phoneNumber =
+        'Mobile number must contain 7 to 10 digits.';
+    }
+
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
       setError('');
       return;
     }
+
+    const continueRegistration = () => {
+      if (!/^\d{7,10}$/.test(normalizedPhone)) {
+        setIsSignup(true);
+        setError('Please add your mobile number to create your account.');
+        return;
+      }
+      goToSelector(trimmedEmail, password, normalizedPhone);
+    };
 
     try {
       setError('');
@@ -123,6 +146,7 @@ export default function Login() {
       const response = await authenticateOwner({
         email: trimmedEmail,
         password,
+        ...(isSignup ? { phoneNumber: normalizedPhone } : {}),
       });
       const success = isApiSuccess(response.success);
       const owner = response.data?.owner;
@@ -158,7 +182,7 @@ export default function Login() {
       }
 
       if (isMissingServiceTypeResponse(response)) {
-        goToSelector(trimmedEmail, password);
+        continueRegistration();
         return;
       }
 
@@ -167,7 +191,7 @@ export default function Login() {
           getResponseIsProfileCompleted(response) ?? storedIsProfileCompleted;
 
         if (failedProfileCompleted === false) {
-          goToSelector(trimmedEmail, password);
+          continueRegistration();
           return;
         }
 
@@ -202,7 +226,7 @@ export default function Login() {
       }
 
       if (isMissingServiceTypeResponse(responseBody)) {
-        goToSelector(trimmedEmail, password);
+        continueRegistration();
         return;
       }
 
@@ -212,7 +236,7 @@ export default function Login() {
           storedIsProfileCompleted;
 
         if (failedProfileCompleted === false) {
-          goToSelector(trimmedEmail, password);
+          continueRegistration();
           return;
         }
 
@@ -248,7 +272,7 @@ export default function Login() {
           }}
         >
           <Text style={[styles.text, { color: colors.text }]}>
-            Welcome Back!
+            {isSignup ? 'Create Your Account' : 'Welcome Back!'}
           </Text>
           <Text
             style={[
@@ -262,7 +286,9 @@ export default function Login() {
               },
             ]}
           >
-            Sign in to continue to your account{' '}
+            {isSignup
+              ? 'Sign up to become a Raun partner'
+              : 'Sign in to continue to your account'}
           </Text>
         </View>
 
@@ -272,6 +298,13 @@ export default function Login() {
           }}
         >
           <Loginform
+            isSignup={isSignup}
+            phoneNumber={phoneNumber}
+            phoneError={fieldErrors.phoneNumber}
+            onPhoneChange={value => {
+              setPhoneNumber(value.replace(/\D/g, '').slice(0, 10));
+              setFieldErrors(prev => ({ ...prev, phoneNumber: undefined }));
+            }}
             email={email}
             password={password}
             error={error}
@@ -291,7 +324,7 @@ export default function Login() {
         </View>
 
         <Button
-          title={'Login '}
+          title={isSignup ? 'Sign Up' : 'Login'}
           onPress={handleLogin}
           loading={loading}
           // size={'lg'}
@@ -301,12 +334,33 @@ export default function Login() {
             marginTop: 20,
           }}
         />
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={loading}
+          onPress={() => {
+            setIsSignup(value => !value);
+            setError('');
+            setFieldErrors({});
+          }}
+          style={{ marginTop: 22, padding: 10 }}
+        >
+          <Text style={{ color: colors.textMuted }}>
+            {isSignup ? 'Already have an account? ' : "Don't have an account? "}
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>
+              {isSignup ? 'Login' : 'Sign Up'}
+            </Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardWrapper>
   );
 }
 
 const Loginform = ({
+  isSignup,
+  phoneNumber,
+  phoneError,
+  onPhoneChange,
   email,
   password,
   error,
@@ -315,6 +369,10 @@ const Loginform = ({
   onEmailChange,
   onPasswordChange,
 }: {
+  isSignup: boolean;
+  phoneNumber: string;
+  phoneError?: string;
+  onPhoneChange: (value: string) => void;
   email: string;
   password: string;
   error?: string;
@@ -328,6 +386,17 @@ const Loginform = ({
   return (
     <View style={{ width: vw(85) }}>
       <View>
+        {isSignup && (
+          <InputText
+            label="Mobile Number"
+            placeholder="Enter mobile number"
+            value={phoneNumber}
+            onChangeText={onPhoneChange}
+            keyboardType="number-pad"
+            maxLength={10}
+            error={phoneError}
+          />
+        )}
         <InputText
           placeholder={'Enter Your Email'}
           label={'Email'}

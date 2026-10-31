@@ -119,3 +119,36 @@ test('working area errors use stable row IDs and unsupported availability values
       .availabilityPreference,
   ).toBeDefined();
 });
+
+test('geocoded areas support multiple selections without postal codes and reject duplicates or missing coordinates', () => {
+  const first = {
+    id: 'one',
+    address: 'Kiulap, Brunei',
+    area: 'Kiulap',
+    city: 'Bandar Seri Begawan',
+    pinCode: '',
+    coordinates: { latitude: 4.91, longitude: 114.93 },
+  };
+  const second = {
+    ...first,
+    id: 'two',
+    city: 'London',
+    area: 'Westminster',
+    coordinates: { latitude: 51.5, longitude: -0.12 },
+  };
+  expect(
+    validateRatesStep({ ...rates(), workingAreas: [first, second] }),
+  ).toEqual({});
+  expect(
+    validateRatesStep({
+      ...rates(),
+      workingAreas: [first, { ...first, id: 'duplicate' }],
+    })['workingAreas.duplicate.area'],
+  ).toBeDefined();
+  expect(
+    validateRatesStep({
+      ...rates(),
+      workingAreas: [{ ...first, coordinates: null }],
+    })['workingAreas.one.coordinates'],
+  ).toBeDefined();
+});

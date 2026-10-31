@@ -1,3 +1,4 @@
+import { formatMoney } from '../utils/currency';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -56,7 +57,7 @@ export default function ProviderProfile() {
   const approved = profile?.verificationStatus === 'APPROVED';
   const money = (amount: number | null) =>
     typeof amount === 'number' && Number.isFinite(amount)
-      ? `${profile?.currency} ${amount.toFixed(2)}`
+      ? formatMoney(amount, profile?.currency)
       : 'Not set';
   const signOut = () =>
     Alert.alert(
@@ -248,6 +249,28 @@ export default function ProviderProfile() {
                       }
                     />
                   </Section>
+                  {!!profile.availabilitySchedule?.length && (
+                    <Section
+                      title="Available hours"
+                      icon={<Clock3 size={17} color="#52765D" />}
+                    >
+                      <Info
+                        label="Time zone"
+                        value={profile.availabilityTimezone || 'UTC'}
+                      />
+                      {profile.availabilitySchedule.map(day => (
+                        <Info
+                          key={day.day}
+                          label={day.day[0] + day.day.slice(1).toLowerCase()}
+                          value={
+                            day.isClosed
+                              ? 'Unavailable'
+                              : `${day.openTime} – ${day.closeTime}`
+                          }
+                        />
+                      ))}
+                    </Section>
+                  )}
                   <Section
                     title="Service rates"
                     icon={<Wallet size={17} color="#52765D" />}

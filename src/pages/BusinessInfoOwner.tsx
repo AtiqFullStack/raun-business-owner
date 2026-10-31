@@ -16,7 +16,8 @@ import ImagePickerModal from '../components/PickImage';
 import InputText from '../components/InputText';
 import KeyboardWrapper from '../components/KeyboardWrapper';
 import Select from '../components/Select';
-import MapView, { type MapCoordinates } from '../components/Map';
+import type { MapCoordinates } from '../components/Map';
+import OwnerAddressFields from '../components/OwnerAddressFields';
 import CameraSvg from '../assets/svg/Code/CameraSvg';
 import { navigate } from '../navigation/navigationRef';
 import { colors } from '../styles/theme';
@@ -84,7 +85,7 @@ const buildOwnerUser = (owner: BusinessOwner) => ({
   profileDetails: {
     firstName: '',
     lastName: '',
-    phoneNumber: '',
+    phoneNumber: owner.phoneNumber || '',
     email: owner.email,
     role: owner.role,
   },
@@ -109,12 +110,6 @@ const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   },
 };
 
-const CITY_OPTIONS = [
-  { label: 'Dubai', value: 'Dubai' },
-  { label: 'Abu Dhabi', value: 'Abu Dhabi' },
-  { label: 'Sharjah', value: 'Sharjah' },
-];
-
 const DAYS = [
   'MONDAY',
   'TUESDAY',
@@ -125,26 +120,11 @@ const DAYS = [
   'SUNDAY',
 ];
 
-const TIME_OPTIONS = [
-  '06:00',
-  '07:00',
-  '08:00',
-  '09:00',
-  '10:00',
-  '11:00',
-  '12:00',
-  '13:00',
-  '14:00',
-  '15:00',
-  '16:00',
-  '17:00',
-  '18:00',
-  '19:00',
-  '20:00',
-  '21:00',
-  '22:00',
-  '23:00',
-];
+const TIME_OPTIONS = Array.from(
+  { length: 48 },
+  (_, i) =>
+    `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`,
+);
 
 const DEFAULT_HOURS: Record<string, DayHours> = {
   MONDAY: { enabled: true, openTime: '09:00', closeTime: '22:00' },
@@ -189,11 +169,8 @@ const validateLocationDetails = (form: LocationForm) => {
   if (isBlank(form.city)) {
     errors.city = 'Please select city.';
   }
-  if (isBlank(form.pinCode)) {
-    errors.pinCode = 'Please enter pin code.';
-  }
   if (!form.coordinates) {
-    errors.coordinates = 'Please select location on map.';
+    errors.coordinates = 'Please select an address from Google search.';
   }
 
   return errors;
@@ -215,6 +192,14 @@ const validateBusinessHours = (businessHours: Record<string, DayHours>) => {
     }
     if (isBlank(dayHours.closeTime)) {
       dayErrors.closeTime = 'Closing time required.';
+    }
+
+    if (
+      dayHours.openTime &&
+      dayHours.closeTime &&
+      dayHours.closeTime <= dayHours.openTime
+    ) {
+      dayErrors.closeTime = 'Closing time must be after opening time.';
     }
 
     if (Object.keys(dayErrors).length > 0) {
@@ -380,7 +365,7 @@ export default function BusinessInfoOwner({ route }: Props) {
     setLocationErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
-  const updateLocationCoordinates = (coordinates: MapCoordinates) => {
+  const updateLocationCoordinates = (coordinates: MapCoordinates | null) => {
     setLocationForm(prev => ({ ...prev, coordinates }));
     setLocationErrors(prev => ({ ...prev, coordinates: undefined }));
   };
@@ -428,7 +413,6 @@ export default function BusinessInfoOwner({ route }: Props) {
       !locationForm.address ||
       !locationForm.area ||
       !locationForm.city ||
-      !locationForm.pinCode ||
       !locationForm.coordinates
     ) {
       showToast('Please complete all business and location details.', 'error');
@@ -440,6 +424,7 @@ export default function BusinessInfoOwner({ route }: Props) {
       const response = await authenticateOwner({
         email: authDraft.email,
         password: authDraft.password,
+        phoneNumber: authDraft.phoneNumber,
         type: authDraft.type,
         businessPhoto: businessForm.businessPhoto,
         businessName: businessForm.businessName,
@@ -579,7 +564,12 @@ export default function BusinessInfoOwner({ route }: Props) {
   const toggleDay = (day: string) => {
     setHours(prev => ({
       ...prev,
-      [day]: { ...prev[day], enabled: !prev[day].enabled },
+      [day]: {
+        ...prev[day],
+        enabled: !prev[day].enabled,
+        openTime: prev[day].openTime || '09:00',
+        closeTime: prev[day].closeTime || '18:00',
+      },
     }));
     setHoursErrors(prev => ({ ...prev, [day]: undefined }));
     setHoursMessage('');
@@ -840,68 +830,16 @@ function LocationDetailsStep({
     field: Exclude<keyof LocationForm, 'coordinates'>,
     value: string,
   ) => void;
-  onCoordinatesChange: (coordinates: MapCoordinates) => void;
+  onCoordinatesChange: (coordinates: MapCoordinates | null) => void;
 }) {
   return (
     <View>
-      <InputText
-        label="Address"
-        placeholder="Enter Complete Address"
-        value={form.address}
-        onChangeText={value => onFormChange('address', value)}
-        containerStyle={styles.inputField}
-        labelStyle={styles.compactLabel}
-        inputStyle={styles.inputText}
-        error={errors.address}
+      <OwnerAddressFields
+        value={form}
+        errors={errors}
+        onChange={onFormChange}
+        onCoordinatesChange={onCoordinatesChange}
       />
-      <InputText
-        label="Area"
-        placeholder="Enter Area"
-        value={form.area}
-        onChangeText={value => onFormChange('area', value)}
-        containerStyle={styles.inputField}
-        labelStyle={styles.compactLabel}
-        inputStyle={styles.inputText}
-        error={errors.area}
-      />
-      <View style={styles.locationRow}>
-        <View style={styles.locationHalf}>
-          <Select
-            label="City"
-            placeholder="Select City"
-            options={CITY_OPTIONS}
-            value={form.city}
-            onChange={value => onFormChange('city', value)}
-            labelStyle={styles.compactLabel}
-            error={errors.city}
-          />
-        </View>
-        <View style={styles.locationHalf}>
-          <InputText
-            label="Pin Code"
-            placeholder="Enter Pin code"
-            value={form.pinCode}
-            onChangeText={value => onFormChange('pinCode', value)}
-            keyboardType="number-pad"
-            labelStyle={styles.compactLabel}
-            inputStyle={styles.inputText}
-            error={errors.pinCode}
-          />
-        </View>
-      </View>
-
-      <View
-        style={[styles.mapBox, errors.coordinates ? styles.mapBoxError : null]}
-      >
-        <MapView
-          selectedCoordinates={form.coordinates}
-          onSelectCoordinates={onCoordinatesChange}
-          showSelectedLabel
-        />
-      </View>
-      {errors.coordinates && (
-        <Text style={styles.errorText}>{errors.coordinates}</Text>
-      )}
     </View>
   );
 }
@@ -940,9 +878,12 @@ function BusinessHoursStep({
                   styles.timeBox,
                   dayErrors?.openTime ? styles.timeBoxError : null,
                 ]}
+                disabled={!config.enabled}
                 onPress={() => onOpenTimePicker(day, 'openTime')}
               >
-                <Text style={styles.timeText}>{config.openTime}</Text>
+                <Text style={styles.timeText}>
+                  {config.enabled ? config.openTime : 'Closed'}
+                </Text>
               </TouchableOpacity>
               <Text style={styles.timeSeparator}>to</Text>
               <TouchableOpacity
@@ -951,11 +892,15 @@ function BusinessHoursStep({
                   styles.timeBox,
                   dayErrors?.closeTime ? styles.timeBoxError : null,
                 ]}
+                disabled={!config.enabled}
                 onPress={() => onOpenTimePicker(day, 'closeTime')}
               >
-                <Text style={styles.timeText}>{config.closeTime}</Text>
+                <Text style={styles.timeText}>
+                  {config.enabled ? config.closeTime : '—'}
+                </Text>
               </TouchableOpacity>
               <Switch
+                accessibilityLabel={`${day} open`}
                 value={config.enabled}
                 onValueChange={() => onToggleDay(day)}
                 trackColor={{ false: colors.borderDark, true: colors.primary }}

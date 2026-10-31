@@ -4,6 +4,7 @@ import {
   isApiSuccess,
   type UploadFile,
   type TotalExperienceRange,
+  type BusinessHourPayload,
 } from './businessOwnerService';
 
 export type OwnerProfile = {
@@ -28,6 +29,9 @@ export type OwnerProfile = {
   minimumCharge: number | null;
   currency: string;
   availabilityPreference: string | null;
+  availabilitySchedule?: BusinessHourPayload[];
+  availabilityTimezone?: string;
+  phoneNumber?: string;
   totalExperience?: number | null;
   totalExperienceRange?: TotalExperienceRange | null;
   workingAreas?: {
@@ -57,10 +61,13 @@ export type OwnerProfileUpdate = Pick<
   | 'professionalTitle'
   | 'about'
   | 'languages'
+  | 'currency'
   | 'hourlyRate'
   | 'serviceCallCharge'
   | 'minimumCharge'
   | 'availabilityPreference'
+  | 'availabilitySchedule'
+  | 'availabilityTimezone'
 > & { profilePhoto?: UploadFile };
 export const availabilityLabels: Record<string, string> = {
   FULL_TIME: 'Full time',

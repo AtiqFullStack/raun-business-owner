@@ -1,3 +1,10 @@
+import {
+  CURRENCY_OPTIONS,
+  DEFAULT_CURRENCY,
+  currencyLabel,
+  isSupportedCurrency,
+} from '../utils/currency';
+import Select from '../components/Select';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +23,11 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import type { AccountStackParamList } from '../routes/TabNavigation';
 import CommonHeader from '../components/CommonHeader';
 import KeyboardWrapper from '../components/KeyboardWrapper';
+import OwnerAvailability from '../components/OwnerAvailability';
+import {
+  defaultAvailability,
+  availabilityError,
+} from '../utils/ownerAvailability';
 import useOwnerProfile from '../hooks/useOwnerProfile';
 import {
   availabilityLabels,
@@ -90,11 +102,22 @@ function ProfileForm({
       profile.professionalTitle || profile.serviceType?.name || '',
     about: profile.about || '',
     languages: (profile.languages || []).join(', '),
+    currency: profile.currency || DEFAULT_CURRENCY,
     hourlyRate: profile.hourlyRate?.toString() || '',
     serviceCallCharge: profile.serviceCallCharge?.toString() || '0',
     minimumCharge: profile.minimumCharge?.toString() || '0',
     availabilityPreference: profile.availabilityPreference || '',
   });
+  const [schedule, setSchedule] = useState(
+    profile.availabilitySchedule?.length
+      ? profile.availabilitySchedule
+      : defaultAvailability(profile.availabilityPreference || 'FULL_TIME'),
+  );
+  const [timezone, setTimezone] = useState(
+    (profile.availabilitySchedule?.length && profile.availabilityTimezone) ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone ||
+      'UTC',
+  );
   const [photo, setPhoto] = useState<UploadFile>();
   const [failedPhoto, setFailedPhoto] = useState<string>();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -113,6 +136,8 @@ function ProfileForm({
   const uri = photo?.uri || getImageUrl(profile.profilePhoto);
   const change = (key: keyof typeof form, value: string) => {
     setForm(previous => ({ ...previous, [key]: value }));
+    if (key === 'availabilityPreference' && value !== 'FLEXIBLE')
+      setSchedule(defaultAvailability(value));
     setErrors(previous => ({ ...previous, [key]: '' }));
   };
   const pickPhoto = async () => {
@@ -174,6 +199,10 @@ function ProfileForm({
     }
     if (!availabilityLabels[form.availabilityPreference])
       invalid.availabilityPreference = 'Choose your availability.';
+    if (!isSupportedCurrency(form.currency))
+      invalid.currency = 'Please select a valid currency.';
+    const scheduleError = availabilityError(schedule);
+    if (scheduleError) invalid.availabilitySchedule = scheduleError;
     setErrors(invalid);
     if (Object.keys(invalid).length) {
       setError('Please check the highlighted fields.');
@@ -188,10 +217,13 @@ function ProfileForm({
         professionalTitle: form.professionalTitle.trim(),
         about: form.about.trim(),
         languages,
+        currency: form.currency,
         hourlyRate: Number(form.hourlyRate),
         serviceCallCharge: Number(form.serviceCallCharge),
         minimumCharge: Number(form.minimumCharge),
         availabilityPreference: form.availabilityPreference,
+        availabilitySchedule: schedule,
+        availabilityTimezone: timezone,
         profilePhoto: photo,
       });
       if (
@@ -297,8 +329,16 @@ function ProfileForm({
           Rates apply to new bookings. Existing bookings keep their agreed
           price.
         </Text>
+        <Select
+          label="Currency"
+          searchable
+          options={CURRENCY_OPTIONS}
+          value={form.currency}
+          onChange={value => change('currency', value)}
+          error={errors.currency}
+        />
         <Field
-          label={`Hourly rate (${profile.currency})`}
+          label={`Hourly rate (${currencyLabel(form.currency)})`}
           value={form.hourlyRate}
           keyboardType="decimal-pad"
           onChangeText={value => change('hourlyRate', value)}
@@ -306,7 +346,7 @@ function ProfileForm({
           maxLength={12}
         />
         <Field
-          label={`Call-out charge (${profile.currency})`}
+          label={`Call-out charge (${currencyLabel(form.currency)})`}
           value={form.serviceCallCharge}
           keyboardType="decimal-pad"
           onChangeText={value => change('serviceCallCharge', value)}
@@ -314,7 +354,7 @@ function ProfileForm({
           maxLength={12}
         />
         <Field
-          label={`Minimum charge (${profile.currency})`}
+          label={`Minimum charge (${currencyLabel(form.currency)})`}
           value={form.minimumCharge}
           keyboardType="decimal-pad"
           onChangeText={value => change('minimumCharge', value)}
@@ -350,6 +390,13 @@ function ProfileForm({
             </Pressable>
           ))}
         </View>
+        <OwnerAvailability
+          value={schedule}
+          onChange={setSchedule}
+          timezone={timezone}
+          onTimezoneChange={setTimezone}
+          error={errors.availabilitySchedule}
+        />
         {!!errors.availabilityPreference && (
           <Text style={styles.error}>{errors.availabilityPreference}</Text>
         )}

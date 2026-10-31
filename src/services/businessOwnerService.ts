@@ -5,6 +5,7 @@ export type BusinessOwner = {
   _id: string;
   userAuthId?: string | null;
   email: string;
+  phoneNumber?: string;
   role: 'BUSINESS_OWNER' | string;
   type?: string;
   businessType?: string;
@@ -57,6 +58,7 @@ export type UploadFile = {
 
 export type BusinessOwnerAuthPayload = {
   email: string;
+  phoneNumber?: string;
   password: string;
   type?: string;
   businessPhoto?: UploadFile | string | null;
@@ -115,7 +117,10 @@ export type ServiceProviderOnboardingPayload = {
   minimumCharge: number;
   currency: string;
   availabilityPreference: string;
+  availabilitySchedule?: BusinessHourPayload[];
+  availabilityTimezone?: string;
   workingAreas: {
+    location?: { type: 'Point'; coordinates: [number, number] };
     address: string;
     area: string;
     city: string;

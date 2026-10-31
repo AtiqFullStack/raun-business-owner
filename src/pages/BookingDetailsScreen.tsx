@@ -1,3 +1,4 @@
+import { formatMoney } from '../utils/currency';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -128,7 +129,7 @@ export default function BookingDetailsScreen({ navigation, route }: Props) {
         )}`
       : '';
   const money = (value: number) =>
-    `${booking?.estimate.currency || ''} ${value.toFixed(2)}`;
+    formatMoney(value, booking?.estimate.currency);
   const canAct =
     booking && ['pending', 'confirmed', 'in_progress'].includes(booking.status);
   const statusColor =

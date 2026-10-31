@@ -9,7 +9,6 @@ import {
   TextStyle,
   TouchableOpacity,
 } from 'react-native';
-import { scale } from '../utils/responsive';
 import { colors } from '../styles/theme';
 
 interface InputTextProps extends TextInputProps {
@@ -20,6 +19,7 @@ interface InputTextProps extends TextInputProps {
   onLeftIconPress?: () => void;
   error?: string;
   containerStyle?: ViewStyle;
+  boxStyle?: ViewStyle;
   labelStyle?: TextStyle;
   inputStyle?: TextStyle;
 }
@@ -32,6 +32,7 @@ export default function InputText({
   onLeftIconPress,
   error,
   containerStyle,
+  boxStyle,
   labelStyle,
   inputStyle,
   ...rest
@@ -42,12 +43,20 @@ export default function InputText({
     <View style={[styles.wrapper, containerStyle]}>
       {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
 
-      <View style={[styles.inputBox, focused && styles.focused, error ? styles.errorBorder : null]}>
+      <View
+        style={[
+          styles.inputBox,
+          focused && styles.focused,
+          error ? styles.errorBorder : null,
+          boxStyle,
+        ]}
+      >
         {leftIcon && (
           <TouchableOpacity
             onPress={onLeftIconPress}
             disabled={!onLeftIconPress}
-            style={styles.iconLeft}>
+            style={styles.iconLeft}
+          >
             {leftIcon}
           </TouchableOpacity>
         )}
@@ -64,7 +73,8 @@ export default function InputText({
           <TouchableOpacity
             onPress={onRightIconPress}
             disabled={!onRightIconPress}
-            style={styles.iconRight}>
+            style={styles.iconRight}
+          >
             {rightIcon}
           </TouchableOpacity>
         )}
@@ -78,7 +88,6 @@ export default function InputText({
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: 16,
-   
   },
   label: {
     fontSize: 14,
@@ -94,8 +103,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.surface,
     paddingHorizontal: 12,
-    
-     
   },
   focused: {
     borderColor: '#6C63FF',

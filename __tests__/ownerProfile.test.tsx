@@ -1,3 +1,4 @@
+import Select from '../src/components/Select';
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (effect: () => void) =>
     require('react').useEffect(effect, [effect]),
@@ -161,9 +162,9 @@ test('provider profile displays real service, working areas, rates and qualifica
   for (const value of [
     'Actual Provider',
     'Electrician',
-    'BND 20.00',
-    'BND 5.00',
-    'BND 30.00',
+    'B$ 20.00',
+    'B$ 5.00',
+    'B$ 30.00',
     'Flexible',
     'English',
     'Central, Bandar',
@@ -182,7 +183,7 @@ test('invalid fields show errors on the edit screen without submitting', async (
   await edit();
   await act(async () => {
     tree.root
-      .findByProps({ accessibilityLabel: 'Hourly rate (BND)' })
+      .findByProps({ accessibilityLabel: 'Hourly rate (B$)' })
       .props.onChangeText('0');
   });
   await press('Save changes');
@@ -231,4 +232,21 @@ test('profile load errors can be retried without showing dummy user details', as
   expect(text()).not.toContain('Abdul');
   await press('Retry');
   expect(text()).toContain('Actual Provider');
+});
+
+test('profile currency selection updates rate labels and saves the selected ISO code', async () => {
+  await edit();
+  const currency = tree.root
+    .findAllByType(Select)
+    .find(node => node.props.label === 'Currency')!;
+  expect(currency.props.value).toBe('BND');
+  await act(async () => currency.props.onChange('SGD'));
+  expect(
+    tree.root.findByProps({ accessibilityLabel: 'Hourly rate (SGD)' }),
+  ).toBeDefined();
+  mockUpdateProfile.mockResolvedValue({ ...profile, currency: 'SGD' });
+  await press('Save changes');
+  expect(mockUpdateProfile).toHaveBeenCalledWith(
+    expect.objectContaining({ currency: 'SGD' }),
+  );
 });

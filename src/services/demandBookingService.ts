@@ -1,3 +1,4 @@
+import { formatMoney } from '../utils/currency';
 import { useCallback } from 'react';
 import useAxios from '../hooks/useAxios';
 import { isApiSuccess } from './businessOwnerService';
@@ -48,7 +49,7 @@ export const bookingStatusLabel = (status: BookingStatus) =>
     cancelled: 'Cancelled',
   }[status]);
 export const bookingAmount = (booking: DemandBooking) =>
-  `${booking.estimate.currency} ${booking.estimate.totalAmount.toFixed(2)}`;
+  formatMoney(booking.estimate.totalAmount, booking.estimate.currency);
 export type DemandDashboardData = {
   profile: { name: string; currency: string };
   metrics: {
