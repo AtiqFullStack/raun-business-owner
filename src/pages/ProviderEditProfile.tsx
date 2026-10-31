@@ -95,7 +95,10 @@ function ProfileForm({
   profile: OwnerProfile;
   onDone: () => void;
 }) {
-  const { updateProfile } = useOwnerProfileService();
+  const { updateProfile } = useOwnerProfileService({
+    showLoader: true,
+    loaderText: 'Saving profile...',
+  });
   const [form, setForm] = useState({
     fullName: profile.fullName || '',
     professionalTitle:

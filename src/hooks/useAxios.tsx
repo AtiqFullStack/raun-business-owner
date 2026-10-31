@@ -1,3 +1,4 @@
+import { useLoader } from '../store/useLoader';
 import axios, { AxiosError, AxiosRequestConfig, Method } from 'axios';
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../store/useAuth';
@@ -17,7 +18,12 @@ export type ApiError = {
   data?: unknown;
 };
 
-type FetchDataConfig<T = any> = {
+export type LoaderOptions = {
+  showLoader?: boolean;
+  loaderText?: string;
+};
+
+type FetchDataConfig<T = any> = LoaderOptions & {
   url: string;
   method?: Method;
   params?: Record<string, any>;
@@ -48,7 +54,10 @@ const normalizeApiError = (error: unknown): ApiError => {
   return { message: 'Something went wrong.' };
 };
 
-const useAxios = () => {
+const useAxios = ({
+  showLoader: defaultShowLoader = false,
+  loaderText: defaultLoaderText = 'Loading...',
+}: LoaderOptions = {}) => {
   const [pendingRequests, setPendingRequests] = useState(0);
   const [error, setError] = useState<ApiError | null>(null);
   const token = useAuth(state => state.token);
@@ -72,7 +81,12 @@ const useAxios = () => {
       service = true,
       responseType,
       onSuccess,
+      showLoader = defaultShowLoader,
+      loaderText = defaultLoaderText,
     }: FetchDataConfig<T>): Promise<ApiResponse<T>> => {
+      const loaderId = showLoader
+        ? useLoader.getState().showLoader(loaderText)
+        : undefined;
       try {
         setPendingRequests(count => count + 1);
         setError(null);
@@ -167,10 +181,11 @@ const useAxios = () => {
         setError(apiError);
         throw apiError;
       } finally {
+        if (loaderId) useLoader.getState().hideLoader(loaderId);
         setPendingRequests(count => Math.max(0, count - 1));
       }
     },
-    [axiosInstance, token],
+    [axiosInstance, token, defaultShowLoader, defaultLoaderText],
   );
 
   const clearError = useCallback(() => {

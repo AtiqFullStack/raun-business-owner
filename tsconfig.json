@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["jest"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "src/components/BrandLoader/index.tsx"],
   "exclude": ["**/node_modules", "**/Pods"]
 }

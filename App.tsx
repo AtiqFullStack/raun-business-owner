@@ -13,6 +13,7 @@ import { colors } from './src/styles/theme';
 import Toaster from './src/components/Toaster';
 import useLocation from './src/hooks/useLocation';
 import { useAuth } from './src/store/useAuth';
+import GlobalLoader from './src/components/BrandLoader/GlobalLoader';
 
 export default function App() {
   return (
@@ -66,6 +67,7 @@ function AppContent() {
       >
         <RootStack />
       </NavigationContainer>
+      <GlobalLoader />
       <Toaster />
     </View>
   );

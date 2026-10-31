@@ -71,6 +71,7 @@ export function useDemandBookingService() {
       url: '/business-owners/demand-bookings/dashboard',
       params: { utcOffsetMinutes: -new Date().getTimezoneOffset() },
       service: false,
+      showLoader: true,
     });
     if (
       !isApiSuccess(result.success) ||
@@ -104,6 +105,7 @@ export function useDemandBookingService() {
             : {}),
         },
         service: false,
+        showLoader: !search && page === 1,
       });
       if (
         !isApiSuccess(result.success) ||

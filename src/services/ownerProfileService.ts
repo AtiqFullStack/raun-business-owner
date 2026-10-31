@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import useAxios from '../hooks/useAxios';
+import useAxios, { type LoaderOptions } from '../hooks/useAxios';
 import {
   isApiSuccess,
   type UploadFile,
@@ -83,12 +83,13 @@ export const experienceLabels: Record<string, string> = {
   '10+': '10+ years',
 };
 
-export function useOwnerProfileService() {
-  const { fetchData } = useAxios();
+export function useOwnerProfileService(loaderOptions?: LoaderOptions) {
+  const { fetchData } = useAxios(loaderOptions);
   const getProfile = useCallback(async () => {
     const response = await fetchData<OwnerProfile>({
       url: '/business-owners/me',
       service: false,
+        showLoader: true,
     });
     if (!isApiSuccess(response.success) || !response.data?._id)
       throw new Error(response.message || 'Unable to load your profile.');

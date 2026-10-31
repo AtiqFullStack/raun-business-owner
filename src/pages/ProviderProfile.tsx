@@ -130,7 +130,10 @@ export default function ProviderProfile() {
               </View>
             )}
             {loading && !profile ? (
-              <ActivityIndicator color="#164C48" style={styles.loading} />
+              <>
+              
+              {/* <ActivityIndicator color="#164C48" style={styles.loading} /> */}
+              </>
             ) : (
               profile && (
                 <>

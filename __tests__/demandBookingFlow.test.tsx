@@ -183,7 +183,7 @@ test('focused bookings refresh on realtime events and discard previous filter re
     DeviceEventEmitter.emit('demandBookingUpdated', { bookingId: 'booking' });
   });
   expect(text()).not.toContain('DS-123');
-  expect(text()).toContain('No new bookings');
+  expect(text()).toContain('No new bookingsa');
 });
 test('rapid Accept taps submit once and show server conflicts', async () => {
   await mountList();
