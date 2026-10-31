@@ -1214,6 +1214,7 @@ function ExperienceCard({
             placeholder="Select Date"
             error={errors[`experiences.${entry.id}.endDate`]}
             value={entry.endDate}
+            minDate={entry.startDate}
             onChange={val => onChange('endDate', val)}
             disabled={entry.currentlyWorking}
           />
@@ -1286,6 +1287,7 @@ function EducationCard({
         placeholder="Select Date"
         error={errors[`educations.${entry.id}.endDate`]}
         value={entry.endDate}
+        minDate={entry.startDate}
         onChange={val => onChange('endDate', val)}
         containerStyle={styles.cardInput}
       />
