@@ -83,7 +83,7 @@ export default function Toaster() {
         </View>
         <View style={styles.copy}>
           <Text style={styles.title}>
-            {type === 'success' ? 'Success' : '}
+            {type === 'success' ? 'Success' : ""}
           </Text>
           <Text accessibilityLiveRegion="polite" style={styles.message}>
             {message}
