@@ -40,9 +40,9 @@ export default function Toaster() {
       useNativeDriver: true,
     }).start()
 
-    const timer = setTimeout(hideToast, 2800)
+    const timer = setTimeout(hideToast, type === 'error' ? 7000 : 5000)
     return () => clearTimeout(timer)
-  }, [hideToast, visible, message, progress])
+  }, [hideToast, visible, message, progress, type])
 
   if (!shouldRender) {
     return null
@@ -85,7 +85,7 @@ export default function Toaster() {
           <Text style={styles.title}>
             {type === 'success' ? 'Success' : 'Something went wrong'}
           </Text>
-          <Text numberOfLines={2} style={styles.message}>
+          <Text accessibilityLiveRegion="polite" style={styles.message}>
             {message}
           </Text>
         </View>

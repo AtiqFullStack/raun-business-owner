@@ -165,7 +165,6 @@ const next = async () => {
 async function fillWork() {
   const step = workStep();
   const job = step.props.form.experiences[0].id;
-  const edu = step.props.form.educations[0].id;
   await act(async () => {
     step.props.onTotalExperienceChange('2-5');
     for (const [field, value] of Object.entries({
@@ -175,14 +174,6 @@ async function fillWork() {
       currentlyWorking: true,
     }))
       step.props.onUpdateExperience(job, field, value);
-    for (const [field, value] of Object.entries({
-      title: 'Diploma',
-      institution: 'Institute',
-      startDate: '2018-01-01',
-      endDate: '2019-01-01',
-      description: 'Technical training',
-    }))
-      step.props.onUpdateEducation(edu, field, value);
   });
 }
 test('step 2 cannot advance until its own required fields are valid, and errors clear as fields are corrected', async () => {

@@ -81,7 +81,6 @@ test('requires nonempty repeated sections and trimmed fields on the experience s
     validateWorkStep({ ...form, experiences: [], educations: [] }),
   ).toMatchObject({
     experiences: expect.any(String),
-    educations: expect.any(String),
   });
 });
 test('invalid calendar dates, missing end dates and reversed ranges are caught on step 2', () => {
@@ -150,5 +149,37 @@ test('geocoded areas support multiple selections without postal codes and reject
       ...rates(),
       workingAreas: [{ ...first, coordinates: null }],
     })['workingAreas.one.coordinates'],
+  ).toBeDefined();
+});
+
+test('education is optional, including blank rows and missing dates or description', () => {
+  expect(validateWorkStep({ ...work(), educations: [] })).toEqual({});
+  expect(
+    validateWorkStep({
+      ...work(),
+      educations: [
+        {
+          ...education,
+          title: '',
+          institution: '',
+          startDate: '',
+          endDate: '',
+          description: '',
+        },
+      ],
+    }),
+  ).toEqual({});
+  expect(
+    validateWorkStep({
+      ...work(),
+      educations: [
+        { ...education, startDate: '', endDate: '', description: '' },
+      ],
+    }),
+  ).toEqual({});
+  expect(
+    validateWorkStep({ ...work(), educations: [{ ...education, title: '' }] })[
+      'educations.edu.title'
+    ],
   ).toBeDefined();
 });

@@ -615,7 +615,11 @@ export default function BusinessInfoOwner({ route }: Props) {
         onChange={handlePickerResult}
       />
 
-      <KeyboardWrapper scroll keyboardVerticalOffset={60}>
+      <KeyboardWrapper
+        scroll
+        keyboardVerticalOffset={60}
+        scrollResetKey={currentStep}
+      >
         <View style={styles.content}>
           {currentStep === 1 && (
             <BusinessDetailsStep
@@ -657,6 +661,29 @@ export default function BusinessInfoOwner({ route }: Props) {
             />
           )}
 
+          {(() => {
+            const firstError =
+              currentStep === 1
+                ? Object.values(businessErrors).find(Boolean)
+                : currentStep === 2
+                ? Object.values(locationErrors).find(Boolean)
+                : currentStep === 3
+                ? hoursMessage ||
+                  Object.entries(hoursErrors)
+                    .map(
+                      ([day, fields]) =>
+                        `${day}: ${
+                          fields?.openTime || fields?.closeTime || ''
+                        }`,
+                    )
+                    .find(Boolean)
+                : Object.values(documentErrors).find(Boolean);
+            return firstError ? (
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                {firstError}
+              </Text>
+            ) : null;
+          })()}
           <Button
             title={currentStep === 4 ? 'Submit For Review' : 'Continue'}
             onPress={handleContinue}

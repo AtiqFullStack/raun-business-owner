@@ -33,7 +33,7 @@ jest.mock('../src/assets/svg', () => ({
 jest.mock('../src/assets/svg/Code/Logo', () => () => null);
 jest.mock('../src/assets/svg/Code/PartnerSvg', () => () => null);
 import React from 'react';
-import { TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import Login from '../src/pages/Login';
 import InputText from '../src/components/InputText';
@@ -143,3 +143,63 @@ test('mobile input accepts seven to ten digits and limits typing to ten digits',
     expect.objectContaining({ phoneNumber: '1234567890' }),
   );
 });
+
+test('incorrect credentials show a clear message without starting registration', async () => {
+  mockAuthenticate.mockRejectedValueOnce({
+    data: {
+      success: false,
+      code: 401,
+      message: 'Invalid email or password',
+      data: { isProfileCompleted: false },
+    },
+  });
+  await fillCredentials();
+  await submit();
+  expect(resetTo).not.toHaveBeenCalled();
+  expect(tree.root.findByType(Button).props.title).toBe('Login');
+  expect(
+    tree.root
+      .findAllByType(require('react-native').Text)
+      .some(
+        node =>
+          node.props.children ===
+          'Incorrect email or password. Please try again, or reset your password.',
+      ),
+  ).toBe(true);
+});
+
+test.each([
+  ['resolved', 'Your profile is pending admin approval'],
+  [
+    'rejected',
+    'Your profile is under review. You can sign in once it’s approved.',
+  ],
+])(
+  'pending approval shows a review card for a %s response and clears when credentials change',
+  async (mode, message) => {
+    const response = {
+      success: false,
+      code: 403,
+      type: 'FORBIDDEN',
+      message,
+      data: null,
+    };
+    if (mode === 'resolved') mockAuthenticate.mockResolvedValueOnce(response);
+    else mockAuthenticate.mockRejectedValueOnce({ data: response });
+    await fillCredentials();
+    await submit();
+    const text = () =>
+      tree.root.findAllByType(Text).map(node => node.props.children);
+    expect(text()).toContain('Profile under review');
+    expect(text()).toContain(
+      'Our team is reviewing your profile. You can sign in once it’s approved.',
+    );
+    expect(text()).not.toContain('Unable to sign in');
+    expect(mockLogin).not.toHaveBeenCalled();
+    expect(resetTo).not.toHaveBeenCalled();
+    await act(async () =>
+      field('Email').props.onChangeText('another@test.local'),
+    );
+    expect(text()).not.toContain('Profile under review');
+  },
+);

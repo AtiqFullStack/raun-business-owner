@@ -5,6 +5,7 @@ import * as React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Splash from '../pages/Splash';
 import Login from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
 import OtpScreen from '../pages/OtpScreen';
 import MainStack from '../routes/TabNavigation';
 import PopularResturants from '../pages/PopularResturants';
@@ -24,6 +25,7 @@ import BusinessSelector from '../pages/BusinessSelector';
 export type RootStackParamList = {
   splash: undefined;
   login: undefined;
+  forgotPassword: { email?: string } | undefined;
   app: NavigatorScreenParams<MainTabParamList> | undefined;
   PopularRestaurants: { categoryTitle?: string } | undefined;
   SelectLocation: undefined;
@@ -88,6 +90,7 @@ export function RootStack() {
       <Stack.Screen name="splash" component={Splash} />
       <Stack.Screen name="GetStarted" component={GetStarted} />
       <Stack.Screen name="login" component={Login} />
+      <Stack.Screen name="forgotPassword" component={ForgotPassword} />
       <Stack.Screen name="tellBusiness" component={BusinessSelector} />
 
       <Stack.Screen name="otpScreen" component={OtpScreen} />

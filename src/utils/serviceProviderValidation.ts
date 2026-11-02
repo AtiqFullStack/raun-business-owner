@@ -18,6 +18,7 @@ type Education = {
   startDate: string;
   endDate: string;
   description: string;
+  certificateUrl?: string;
 };
 type Area = {
   id: string;
@@ -109,6 +110,17 @@ function validateDates(
   }
 }
 
+export function hasEducationDetails(entry: Omit<Education, 'id'>): boolean {
+  return [
+    entry.title,
+    entry.institution,
+    entry.startDate,
+    entry.endDate,
+    entry.description,
+    entry.certificateUrl,
+  ].some(value => !!value?.trim());
+}
+
 export function validateWorkStep(form: {
   totalExperience: string;
   experiences: Experience[];
@@ -134,17 +146,21 @@ export function validateWorkStep(form: {
       entry.currentlyWorking,
     );
   });
-  if (!form.educations.length)
-    errors.educations = 'Please add at least one education or certification.';
   form.educations.forEach(entry => {
+    if (!hasEducationDetails(entry)) return;
     const key = `educations.${entry.id}`;
     if (!entry.title.trim())
       errors[`${key}.title`] = 'Please enter the degree or certificate.';
     if (!entry.institution.trim())
       errors[`${key}.institution`] = 'Please enter the institution.';
-    if (!entry.description.trim())
-      errors[`${key}.description`] = 'Please enter a short description.';
-    validateDates(errors, key, entry.startDate, entry.endDate);
+    const from = entry.startDate ? dateValue(entry.startDate) : null;
+    const to = entry.endDate ? dateValue(entry.endDate) : null;
+    if (entry.startDate && from === null)
+      errors[`${key}.startDate`] = 'Please select a valid start date.';
+    if (entry.endDate && to === null)
+      errors[`${key}.endDate`] = 'Please select a valid end date.';
+    if (from !== null && to !== null && to < from)
+      errors[`${key}.endDate`] = 'End date must be on or after start date.';
   });
   return errors;
 }

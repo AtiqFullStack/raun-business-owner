@@ -40,8 +40,16 @@ const normalizeApiError = (error: unknown): ApiError => {
     const responseData = axiosError.response?.data;
 
     return {
-      message:
-        responseData?.message || axiosError.message || 'Something went wrong.',
+      message: !axiosError.response
+        ? axiosError.code === 'ECONNABORTED'
+          ? 'The request timed out. Please try again.'
+          : 'Unable to connect. Check your internet connection and try again.'
+        : typeof responseData?.message === 'string' &&
+          responseData.message.trim()
+        ? responseData.message
+        : axiosError.response.status >= 500
+        ? 'The service is temporarily unavailable. Please try again later.'
+        : 'Unable to complete your request. Please try again.',
       status: axiosError.response?.status,
       data: responseData,
     };

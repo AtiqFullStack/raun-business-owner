@@ -6,7 +6,7 @@ import { EmailSvg, LockSvg } from '../assets/svg';
 import { vw } from '../utils/responsive';
 import Button from '../components/Button';
 import PartnerSvg from '../assets/svg/Code/PartnerSvg';
-import { resetTo } from '../navigation/navigationRef';
+import { navigate, resetTo } from '../navigation/navigationRef';
 import InputText from '../components/InputText';
 import { Eye, EyeOff } from 'lucide-react-native';
 import KeyboardWrapper from '../components/KeyboardWrapper';
@@ -47,6 +47,9 @@ const isMissingServiceTypeResponse = (response?: {
   response.message === 'Service type is required' &&
   response.data === null;
 
+const PROFILE_REVIEW_MESSAGE =
+  'Your profile is under review. You can sign in once it’s approved.';
+
 const isPendingApprovalResponse = (response?: {
   success?: boolean | string;
   code?: number;
@@ -58,7 +61,9 @@ const isPendingApprovalResponse = (response?: {
   !isApiSuccess(response.success) &&
   response.code === 403 &&
   response.type === 'FORBIDDEN' &&
-  response.message === 'Your profile is pending admin approval' &&
+  ['Your profile is pending admin approval', PROFILE_REVIEW_MESSAGE].includes(
+    response.message || '',
+  ) &&
   response.data === null;
 
 const getResponseIsProfileCompleted = (response?: {
@@ -84,6 +89,14 @@ const goToSelector = (
   });
 };
 
+const loginErrorMessage = (message?: string, status?: number) =>
+  status === 401 ||
+  /invalid (email|password|credentials)|incorrect (email|password)/i.test(
+    message || '',
+  )
+    ? 'Incorrect email or password. Please try again, or reset your password.'
+    : message || 'Unable to sign in. Please try again.';
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type LoginFieldErrors = {
@@ -100,7 +113,6 @@ export default function Login() {
   const [error, setError] = React.useState('');
   const [fieldErrors, setFieldErrors] = React.useState<LoginFieldErrors>({});
   const login = useAuth(state => state.login);
-  const storedIsProfileCompleted = useAuth(state => state.isProfileCompleted);
   const showToast = useToast(state => state.showToast);
   const { authenticateOwner, loading, clearError } = useBusinessOwnerService();
 
@@ -177,7 +189,7 @@ export default function Login() {
       }
 
       if (isPendingApprovalResponse(response)) {
-        setError(response.message || 'Your profile is pending admin approval');
+        setError(PROFILE_REVIEW_MESSAGE);
         return;
       }
 
@@ -187,19 +199,18 @@ export default function Login() {
       }
 
       if (!success) {
-        const failedProfileCompleted =
-          getResponseIsProfileCompleted(response) ?? storedIsProfileCompleted;
+        const failedProfileCompleted = getResponseIsProfileCompleted(response);
 
-        if (failedProfileCompleted === false) {
+        if (failedProfileCompleted === false && response.code !== 401) {
           continueRegistration();
           return;
         }
 
-        setError(response.message || 'Unable to login.');
+        setError(loginErrorMessage(response.message, response.code));
         return;
       }
 
-      setError(response.message || 'Unable to login.');
+      setError(loginErrorMessage(response.message, response.code));
       showToast(response.message || 'Unable to login.', 'error');
     } catch (err) {
       const responseBody =
@@ -219,9 +230,7 @@ export default function Login() {
           : undefined;
 
       if (isPendingApprovalResponse(responseBody)) {
-        setError(
-          responseBody?.message || 'Your profile is pending admin approval',
-        );
+        setError(PROFILE_REVIEW_MESSAGE);
         return;
       }
 
@@ -232,15 +241,14 @@ export default function Login() {
 
       if (responseBody && !isApiSuccess(responseBody.success)) {
         const failedProfileCompleted =
-          getResponseIsProfileCompleted(responseBody) ??
-          storedIsProfileCompleted;
+          getResponseIsProfileCompleted(responseBody);
 
-        if (failedProfileCompleted === false) {
+        if (failedProfileCompleted === false && responseBody.code !== 401) {
           continueRegistration();
           return;
         }
 
-        setError(responseBody.message || 'Unable to login.');
+        setError(loginErrorMessage(responseBody.message, responseBody.code));
         return;
       }
 
@@ -248,7 +256,7 @@ export default function Login() {
         err && typeof err === 'object' && 'message' in err
           ? String(err.message)
           : 'Unable to login.';
-      setError(message);
+      setError(loginErrorMessage(message));
       showToast(message, 'error');
     }
   };
@@ -382,6 +390,7 @@ const Loginform = ({
   onPasswordChange: (value: string) => void;
 }) => {
   const [hidepassword, setHidePassword] = useState(true);
+  const isUnderReview = error === PROFILE_REVIEW_MESSAGE;
 
   return (
     <View style={{ width: vw(85) }}>
@@ -429,26 +438,74 @@ const Loginform = ({
           }}
           error={passwordError}
         />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <View
+            accessibilityLiveRegion="polite"
+            accessibilityRole="alert"
+            style={[
+              styles.feedbackCard,
+              isUnderReview ? styles.reviewCard : styles.failureCard,
+            ]}
+          >
+            <View
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[
+                styles.feedbackIcon,
+                isUnderReview ? styles.reviewIcon : styles.failureIcon,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.feedbackSymbol,
+                  isUnderReview ? styles.reviewText : styles.failureText,
+                ]}
+              >
+                {isUnderReview ? '◷' : '!'}
+              </Text>
+            </View>
+            <View style={styles.feedbackCopy}>
+              <Text
+                style={[
+                  styles.feedbackTitle,
+                  isUnderReview ? styles.reviewText : styles.failureText,
+                ]}
+              >
+                {isUnderReview
+                  ? 'Profile under review'
+                  : isSignup
+                  ? 'Check your details'
+                  : 'Unable to sign in'}
+              </Text>
+              <Text style={styles.feedbackMessage}>
+                {isUnderReview
+                  ? 'Our team is reviewing your profile. You can sign in once it’s approved.'
+                  : error}
+              </Text>
+            </View>
+          </View>
+        ) : null}
       </View>
-      {/* <TouchableOpacity>
+      {!isSignup && (
         <Text
+          accessibilityRole="button"
+          onPress={() => navigate('forgotPassword', { email: email.trim() })}
           style={{
             alignSelf: 'flex-end',
-            marginVertical: 10,
+            paddingVertical: 12,
             color: colors.secondary,
-            fontSize: 12,
           }}
         >
           Forgot Password?
         </Text>
-      </TouchableOpacity> */}
+      )}
     </View>
   );
 };
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: colors.screen,
     alignItems: 'center',
     paddingTop: 130,
@@ -462,10 +519,39 @@ const styles = StyleSheet.create({
     letterSpacing: 0.38,
     textAlign: 'center',
   },
-  errorText: {
-    color: colors.error,
-    fontSize: 12,
-    marginTop: -6,
-    marginBottom: 6,
+  feedbackCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    gap: 12,
   },
+  reviewCard: {
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.warning,
+  },
+  failureCard: { backgroundColor: colors.errorSoft, borderColor: colors.error },
+  feedbackIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewIcon: { backgroundColor: colors.surface },
+  failureIcon: { backgroundColor: colors.surface },
+  feedbackSymbol: { fontSize: 22, fontWeight: '600' },
+  feedbackCopy: { flex: 1 },
+  feedbackTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
+    marginBottom: 5,
+  },
+  feedbackMessage: { fontSize: 14, lineHeight: 21, color: colors.text },
+  reviewText: { color: '#805400' },
+  failureText: { color: colors.error },
 });

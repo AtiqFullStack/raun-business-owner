@@ -80,7 +80,7 @@ export default function InputText({
         )}
       </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>}
     </View>
   );
 }

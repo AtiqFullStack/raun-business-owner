@@ -2,73 +2,65 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import theme from '../styles/theme';
 
 export default function KeyboardWrapper({
   children,
   scroll = false,
-  keyboardVerticalOffset = 50,
+  keyboardVerticalOffset = 0,
   dismissOnTap = true,
+  scrollResetKey,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   keyboardVerticalOffset?: number;
-  // Screens with their own scroll container handle keyboard dismissal on drag.
   dismissOnTap?: boolean;
+  scrollResetKey?: string | number;
 }) {
-  const [offset, setOffset] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () =>
-      setOffset(keyboardVerticalOffset),
-    );
-    const hide = Keyboard.addListener('keyboardDidHide', () => setOffset(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, [keyboardVerticalOffset]);
-
-  const content = scroll ? (
-    <ScrollView
-      style={styles.inner}
-      contentContainerStyle={styles.scrollContent}
-      keyboardDismissMode="on-drag"
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      {children}
-    </ScrollView>
-  ) : (
-    <View style={styles.inner}>{children}</View>
-  );
-
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollResetKey]);
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={offset}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardVerticalOffset}
       style={styles.container}
     >
-      {dismissOnTap ? (
-        <Pressable
-          accessible={false}
+      {scroll ? (
+        <ScrollView
+          ref={scrollRef}
           style={styles.inner}
-          onPress={Keyboard.dismiss}
+          contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
         >
-          {content}
-        </Pressable>
+          {children}
+        </ScrollView>
       ) : (
-        content
+        <View
+          style={styles.inner}
+          onTouchEnd={
+            dismissOnTap
+              ? event => {
+                  if (event.target === event.currentTarget) Keyboard.dismiss();
+                }
+              : undefined
+          }
+        >
+          {children}
+        </View>
       )}
     </KeyboardAvoidingView>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.surface },
   inner: { flex: 1, backgroundColor: theme.colors.surface },

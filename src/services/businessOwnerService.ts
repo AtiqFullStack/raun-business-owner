@@ -271,7 +271,28 @@ export const useBusinessOwnerService = () => {
     [fetchData],
   );
 
+  const forgotPassword = (email: string) =>
+    fetchData({
+      url: '/business-owners/auth/forgot-password',
+      method: 'POST',
+      data: { email },
+      service: false,
+    });
+  const resetPassword = (data: {
+    email: string;
+    otp: string;
+    password: string;
+  }) =>
+    fetchData({
+      url: '/business-owners/auth/reset-password',
+      method: 'POST',
+      data,
+      service: false,
+    });
+
   return {
+    forgotPassword,
+    resetPassword,
     authenticateOwner,
     getBusinessAndCuisineTypes,
     getDemandServiceTypes,

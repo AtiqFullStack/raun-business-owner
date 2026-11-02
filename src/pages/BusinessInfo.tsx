@@ -37,6 +37,7 @@ import type { BusinessHourPayload } from '../services/businessOwnerService';
 import DemandServiceTypeSelect from '../components/DemandServiceTypeSelect';
 import {
   validateWorkStep,
+  hasEducationDetails,
   validateRatesStep,
   calculateTotalExperienceYears,
   type StepErrors,
@@ -255,7 +256,7 @@ export default function BusinessInfoSP({ route }: Props) {
   const [workForm, setWorkForm] = useState<WorkExperienceForm>({
     totalExperience: '',
     experiences: [makeExperience()],
-    educations: [makeEducation()],
+    educations: [],
   });
 
   /* Step 3 */
@@ -482,14 +483,16 @@ export default function BusinessInfoSP({ route }: Props) {
           : experience.endDate || null,
         currentlyWorking: experience.currentlyWorking,
       })),
-      educationCertifications: workForm.educations.map(education => ({
-        title: education.title,
-        institution: education.institution,
-        startDate: education.startDate,
-        endDate: education.endDate,
-        description: education.description,
-        certificateUrl: education.certificateUrl,
-      })),
+      educationCertifications: workForm.educations
+        .filter(hasEducationDetails)
+        .map(education => ({
+          title: education.title,
+          institution: education.institution,
+          startDate: education.startDate,
+          endDate: education.endDate,
+          description: education.description,
+          certificateUrl: education.certificateUrl,
+        })),
       hourlyRate: Number(ratesForm.hourlyRate),
       serviceCallCharge: Number(ratesForm.serviceCallCharge),
       minimumCharge: Number(ratesForm.minimumCharge),
@@ -618,7 +621,11 @@ export default function BusinessInfoSP({ route }: Props) {
         onChange={handlePickerResult}
       />
 
-      <KeyboardWrapper scroll keyboardVerticalOffset={60}>
+      <KeyboardWrapper
+        scroll
+        keyboardVerticalOffset={60}
+        scrollResetKey={currentStep}
+      >
         <View style={styles.scrollContent}>
           {currentStep === 1 && (
             <ProfileInfoStep
@@ -670,6 +677,20 @@ export default function BusinessInfoSP({ route }: Props) {
             </>
           )}
 
+          {(() => {
+            const stepErrors =
+              currentStep === 1
+                ? profileErrors
+                : currentStep === 2
+                ? workErrors
+                : ratesErrors;
+            const firstError = Object.values(stepErrors).find(Boolean);
+            return firstError ? (
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                {firstError}
+              </Text>
+            ) : null;
+          })()}
           {/* Footer */}
           <View style={styles.footerRow}>
             {showBack && (
@@ -979,7 +1000,7 @@ function WorkExperienceStep({
       </TouchableOpacity>
 
       <Text style={[styles.sectionLabel, styles.sectionLabelTop]}>
-        Education / Certification
+        Education / Certification (optional)
       </Text>
       {!!errors.educations && (
         <Text style={styles.errorText}>{errors.educations}</Text>
@@ -1275,7 +1296,7 @@ function EducationCard({
         containerStyle={styles.cardInput}
       />
       <DatePicker
-        label="Start Date"
+        label="Start Date (optional)"
         placeholder="Select Date"
         error={errors[`educations.${entry.id}.startDate`]}
         value={entry.startDate}
@@ -1283,7 +1304,7 @@ function EducationCard({
         containerStyle={styles.cardInput}
       />
       <DatePicker
-        label="End Date"
+        label="End Date (optional)"
         placeholder="Select Date"
         error={errors[`educations.${entry.id}.endDate`]}
         value={entry.endDate}
@@ -1292,7 +1313,7 @@ function EducationCard({
         containerStyle={styles.cardInput}
       />
       <InputText
-        label="Description"
+        label="Description (optional)"
         placeholder="Describe your certification"
         error={errors[`educations.${entry.id}.description`]}
         value={entry.description}
