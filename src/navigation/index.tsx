@@ -1,3 +1,4 @@
+import BookingChat from '../pages/BookingChat';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { MainTabParamList } from '../routes/TabNavigation';
 import * as React from 'react';
@@ -23,6 +24,7 @@ import OwnerDashboard from '../pages/OwnerDashboard';
 import BusinessSelector from '../pages/BusinessSelector';
 
 export type RootStackParamList = {
+  BookingChat: { orderId: string; title?: string; bookingNumber?: string };
   splash: undefined;
   login: undefined;
   forgotPassword: { email?: string } | undefined;
@@ -88,6 +90,7 @@ export function RootStack() {
       }}
     >
       <Stack.Screen name="splash" component={Splash} />
+      <Stack.Screen name="BookingChat" component={BookingChat} />
       <Stack.Screen name="GetStarted" component={GetStarted} />
       <Stack.Screen name="login" component={Login} />
       <Stack.Screen name="forgotPassword" component={ForgotPassword} />

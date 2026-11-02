@@ -1,3 +1,9 @@
+import {
+  canContactCustomer,
+  ownerBookingPresentation,
+  ownerBookingReason,
+} from '../utils/ownerBookingPresentation';
+import { navigate } from '../navigation/navigationRef';
 import { formatMoney } from '../utils/currency';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -33,7 +39,6 @@ import KeyboardWrapper from '../components/KeyboardWrapper';
 import type { BookingStackParamList } from '../routes/TabNavigation';
 import {
   bookingAmount,
-  bookingStatusLabel,
   useDemandBookingService,
   type DemandBooking,
 } from '../services/demandBookingService';
@@ -132,18 +137,10 @@ export default function BookingDetailsScreen({ navigation, route }: Props) {
     formatMoney(value, booking?.estimate.currency);
   const canAct =
     booking && ['pending', 'confirmed', 'in_progress'].includes(booking.status);
-  const statusColor =
-    booking?.status === 'pending'
-      ? '#B65B16'
-      : booking?.status === 'cancelled'
-      ? '#A04B4B'
-      : '#2B7557';
-  const statusBackground =
-    booking?.status === 'pending'
-      ? '#FFF1E6'
-      : booking?.status === 'cancelled'
-      ? '#FAEEEE'
-      : '#E8F4EC';
+  const presentation = booking ? ownerBookingPresentation(booking) : null;
+  const cancellationReason = booking ? ownerBookingReason(booking) : '';
+  const statusColor = presentation?.color;
+  const statusBackground = presentation?.background;
   return (
     <KeyboardWrapper dismissOnTap={false}>
       <View style={styles.screen}>
@@ -216,12 +213,16 @@ export default function BookingDetailsScreen({ navigation, route }: Props) {
                         style={[styles.dot, { backgroundColor: statusColor }]}
                       />
                       <Text style={[styles.badgeText, { color: statusColor }]}>
-                        {booking.status === 'pending'
-                          ? 'New Booking'
-                          : bookingStatusLabel(booking.status)}
+                        {presentation?.label}
                       </Text>
                     </View>
                   </View>
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.statusDescription}
+                  >
+                    {presentation?.description}
+                  </Text>
                   <Text style={styles.serviceTitle}>
                     {booking.serviceTypeName}
                   </Text>
@@ -264,21 +265,29 @@ export default function BookingDetailsScreen({ navigation, route }: Props) {
                       {!!phone && <Text style={styles.subtle}>{phone}</Text>}
                     </View>
                   </View>
-                  {!!phone && (
+                  {canContactCustomer(booking) && (
                     <View style={styles.contactActions}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Call customer"
-                        onPress={() => open(`tel:${phone}`)}
-                        style={styles.contactButton}
-                      >
-                        <Phone size={16} color="#426C50" />
-                        <Text style={styles.contactLabel}>Call customer</Text>
-                      </Pressable>
+                      {!!phone && (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Call customer"
+                          onPress={() => open(`tel:${phone}`)}
+                          style={styles.contactButton}
+                        >
+                          <Phone size={16} color="#426C50" />
+                          <Text style={styles.contactLabel}>Call customer</Text>
+                        </Pressable>
+                      )}
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Message customer"
-                        onPress={() => open(`sms:${phone}`)}
+                        onPress={() =>
+                          navigate('BookingChat', {
+                            orderId: booking.unifiedOrderId || booking._id,
+                            title: customerName,
+                            bookingNumber: booking.bookingNumber,
+                          })
+                        }
                         style={styles.contactButton}
                       >
                         <MessageSquare size={16} color="#426C50" />
@@ -397,12 +406,14 @@ export default function BookingDetailsScreen({ navigation, route }: Props) {
                     {booking.notes || 'No special instructions'}
                   </Text>
                 </View>
-                {!!booking.cancellationReason && (
+                {!!cancellationReason && (
                   <View style={styles.cancellation}>
-                    <Text style={styles.cancelTitle}>Cancellation reason</Text>
-                    <Text style={styles.cancelText}>
-                      {booking.cancellationReason}
+                    <Text style={styles.cancelTitle}>
+                      {booking.ownerDecision === 'rejected'
+                        ? 'Decline reason'
+                        : 'Cancellation reason'}
                     </Text>
+                    <Text style={styles.cancelText}>{cancellationReason}</Text>
                   </View>
                 )}
               </>
@@ -427,6 +438,12 @@ export default function BookingDetailsScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  statusDescription: {
+    color: '#60796F',
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
   screen: { flex: 1, backgroundColor: '#F5F7F6' },
   header: { borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   headerTitle: { fontSize: 17, fontWeight: '600' },

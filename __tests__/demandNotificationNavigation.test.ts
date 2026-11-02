@@ -62,3 +62,15 @@ test('another owner notification never opens in the current account', () => {
   openDemandNotification({ ...event, providerId: 'another-owner' });
   expect(navigationRef.navigate).not.toHaveBeenCalled();
 });
+
+test('chat notifications open the booking conversation', () => {
+  openDemandNotification({
+    ...event,
+    type: 'NEW_MESSAGE',
+    orderId: 'order',
+    messageId: 'message',
+  });
+  expect(navigationRef.navigate).toHaveBeenCalledWith('BookingChat', {
+    orderId: 'order',
+  });
+});

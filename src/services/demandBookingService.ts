@@ -20,6 +20,7 @@ export type DemandBooking = {
   customer?: { name: string; phoneNumber: string; profilePhoto?: string };
   notes?: string;
   cancellationReason?: string;
+  cancelledBy?: 'customer' | 'business_owner';
   ownerDecision?: 'accepted' | 'rejected';
   estimate: {
     totalAmount: number;

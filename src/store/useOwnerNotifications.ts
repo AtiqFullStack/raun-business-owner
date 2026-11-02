@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 export type DemandEvent = {
+  type?: string;
+  orderId?: string;
+  messageId?: string;
   sourceModel?: string;
   bookingId?: string;
   sourceId?: string;
@@ -28,7 +31,10 @@ export const useOwnerNotifications = create<{
       !event.bookingId
     )
       return false;
-    const key = `${event.bookingId}:${event.status}`;
+    const key =
+      event.type === 'NEW_MESSAGE'
+        ? `chat:${event.messageId}`
+        : `${event.bookingId}:${event.status}`;
     if (state.items.some(item => item.key === key)) return false;
     set({
       items: [

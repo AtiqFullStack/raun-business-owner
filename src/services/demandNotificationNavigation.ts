@@ -14,12 +14,18 @@ export function flushDemandNotification() {
   const { user } = useAuth.getState();
   if (!pending || !user?.userAuthId || !navigationRef.isReady()) return;
   const state = navigationRef.getRootState();
-  if (state.routes[state.index]?.name !== 'app') return;
+  if (!state.routes.some(route => route.name === 'app')) return;
   if (pending.providerId !== user.id) {
     pending = null;
     return;
   }
   const bookingId = pending.bookingId!;
+  if (pending.type === 'NEW_MESSAGE') {
+    const orderId = pending.orderId || bookingId;
+    pending = null;
+    navigationRef.navigate('BookingChat', { orderId });
+    return;
+  }
   pending = null;
   navigationRef.navigate('app', {
     screen: 'MyBookings',

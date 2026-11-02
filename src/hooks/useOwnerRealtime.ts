@@ -71,6 +71,12 @@ export default function useOwnerRealtime() {
             'success',
           );
     };
+    const receiveChat = (
+      data: DemandEvent & { message?: { senderId?: string } },
+    ) => {
+      if (data.message?.senderId === ownerId) return;
+      receive(data);
+    };
     const initialize = async () => {
       if (!active || initializing || ready) return;
       initializing = true;
@@ -107,6 +113,8 @@ export default function useOwnerRealtime() {
         if (!socketListening) {
           useOwnerNotifications.getState().reset(ownerId);
           socket.on('DEMAND_BOOKING_UPDATED', receive);
+          socket.on('CHAT_MESSAGE', receiveChat);
+          cleanup.push(() => socket.off('CHAT_MESSAGE', receiveChat));
           cleanup.push(() => socket.off('DEMAND_BOOKING_UPDATED', receive));
           socketListening = true;
         }
@@ -129,7 +137,17 @@ export default function useOwnerRealtime() {
         };
         if (!pushListening) {
           cleanup.push(
-            onMessage(messaging, message => receive(message.data || {})),
+            onMessage(messaging, message =>
+              receive({
+                ...message.data,
+                title:
+                  message.notification?.title ||
+                  String(message.data?.senderName || ''),
+                body:
+                  message.notification?.body ||
+                  String(message.data?.message || ''),
+              }),
+            ),
           );
           cleanup.push(
             onTokenRefresh(messaging, value => {

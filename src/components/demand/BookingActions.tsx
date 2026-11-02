@@ -100,8 +100,8 @@ const styles = StyleSheet.create({
   action: {
     flex: 1,
     backgroundColor: '#164C48',
-    minHeight: 38,
-    borderRadius: 4,
+    minHeight: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

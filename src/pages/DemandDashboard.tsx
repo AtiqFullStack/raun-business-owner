@@ -1,8 +1,10 @@
+import { ownerBookingPresentation } from '../utils/ownerBookingPresentation';
 import { formatMoney } from '../utils/currency';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -31,10 +33,11 @@ import { resetTo } from '../navigation/navigationRef';
 import Logo from '../assets/svg/Logo.svg';
 import {
   bookingAmount,
-  bookingStatusLabel,
   type BookingStatus,
   type DemandBooking,
 } from '../services/demandBookingService';
+import useOwnerProfile from '../hooks/useOwnerProfile';
+import getImageUrl from '../utils/urlConvertor';
 
 const statusColors = {
   pending: { color: '#B65B16', backgroundColor: '#FFF1E6' },
@@ -49,6 +52,8 @@ export default function DemandDashboard() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const fallbackName = useAuth(state => state.user?.name);
   const [period, setPeriod] = useState<'today' | 'upcoming'>('today');
+    const { profile} = useOwnerProfile();
+    console.log(profile)
   const name = (data?.profile.name || fallbackName || '')
     .trim()
     .split(/\s+/)[0];
@@ -92,10 +97,14 @@ export default function DemandDashboard() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open account menu"
-              onPress={menu}
+              // onPress={menu}
               style={styles.headerButton}
             >
-              <Menu color="#FFFFFF" size={21} strokeWidth={1.7} />
+              <Image
+              source={{ uri: getImageUrl(profile?.profilePhoto) }}
+              style={{ width: 42, height: 42, borderRadius: 25 }}
+              />
+              {/* <Menu color="#FFFFFF" size={21} strokeWidth={1.7} /> */}
             </Pressable>
             <Logo width={76} height={28} />
             <Pressable
@@ -408,7 +417,7 @@ function BookingPreview({
                 { color: statusColors[booking.status].color },
               ]}
             >
-              {bookingStatusLabel(booking.status)}
+              {ownerBookingPresentation(booking).label}
             </Text>
           </View>
         </View>

@@ -1,9 +1,11 @@
+jest.mock('../src/navigation/navigationRef', () => ({ navigate: jest.fn() }));
 jest.mock('lucide-react-native', () => ({
   ArrowLeft: () => null,
   ArrowUpRight: () => null,
   Banknote: () => null,
   CalendarDays: () => null,
   Clock3: () => null,
+  ChevronRight: () => null,
   MapPin: () => null,
   StickyNote: () => null,
   Wrench: () => null,
@@ -183,7 +185,7 @@ test('focused bookings refresh on realtime events and discard previous filter re
     DeviceEventEmitter.emit('demandBookingUpdated', { bookingId: 'booking' });
   });
   expect(text()).not.toContain('DS-123');
-  expect(text()).toContain('No new bookingsa');
+  expect(text()).toContain('No new bookings');
 });
 test('rapid Accept taps submit once and show server conflicts', async () => {
   await mountList();
@@ -259,7 +261,13 @@ test('booking detail contact and map buttons use actual customer data', async ()
         .findByProps({ accessibilityLabel: 'Message customer' })
         .props.onPress();
     });
-    expect(open).toHaveBeenCalledWith('sms:+6731234567');
+    expect(
+      require('../src/navigation/navigationRef').navigate,
+    ).toHaveBeenCalledWith('BookingChat', {
+      orderId: 'order',
+      title: 'Actual Customer',
+      bookingNumber: 'DS-123',
+    });
     await press('View On Map');
     expect(open).toHaveBeenCalledWith(
       'https://www.google.com/maps/search/?api=1&query=Central%20Road',
@@ -284,4 +292,87 @@ test('today View all loads every status while status tabs retain the day filter'
   expect(mockGetBookings).toHaveBeenLastCalledWith('confirmed', 1, '', 'today');
   await press('All');
   expect(mockGetBookings).toHaveBeenLastCalledWith('all', 1, '', 'today');
+});
+
+test.each(['completed', 'cancelled'] as const)(
+  'ended %s bookings hide call and message actions',
+  async status => {
+    mockGetBooking.mockResolvedValue({
+      ...booking,
+      status,
+      customer: { name: 'Actual Customer', phoneNumber: '+6731234567' },
+    });
+    await act(async () => {
+      tree = create(
+        <BookingDetailsScreen
+          navigation={navigation as never}
+          route={{ params: { bookingId: 'booking' } } as never}
+        />,
+      );
+    });
+    expect(
+      tree.root.findAllByProps({ accessibilityLabel: 'Call customer' }),
+    ).toHaveLength(0);
+    expect(
+      tree.root.findAllByProps({ accessibilityLabel: 'Message customer' }),
+    ).toHaveLength(0);
+    expect(text()).toContain('Actual Customer');
+  },
+);
+test('declined bookings explain the owner action in both list and detail', async () => {
+  const declined = {
+    ...booking,
+    status: 'cancelled',
+    ownerDecision: 'rejected',
+    cancellationReason: 'Declined by provider',
+    cancelledBy: 'business_owner',
+  };
+  mockGetBookings.mockResolvedValue({
+    bookings: [declined],
+    pagination: { page: 1, totalPages: 1, total: 1 },
+  });
+  await mountList();
+  expect(text()).toContain('You declined');
+  expect(text()).not.toContain('Declined by provider');
+  await act(async () => tree.unmount());
+  mockGetBooking.mockResolvedValue(declined);
+  await act(async () => {
+    tree = create(
+      <BookingDetailsScreen
+        navigation={navigation as never}
+        route={{ params: { bookingId: 'booking' } } as never}
+      />,
+    );
+  });
+  expect(text()).toContain('You declined this booking.');
+  expect(text()).not.toContain('Declined by provider');
+});
+test('an open booking loses contact buttons when a cancellation event refreshes it', async () => {
+  mockGetBooking.mockResolvedValueOnce({
+    ...booking,
+    customer: { name: 'Customer', phoneNumber: '+6731234567' },
+  });
+  await act(async () => {
+    tree = create(
+      <BookingDetailsScreen
+        navigation={navigation as never}
+        route={{ params: { bookingId: 'booking' } } as never}
+      />,
+    );
+  });
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Message customer' }).length,
+  ).toBeGreaterThan(0);
+  mockGetBooking.mockResolvedValue({
+    ...booking,
+    status: 'cancelled',
+    cancelledBy: 'customer',
+  });
+  await act(async () => {
+    DeviceEventEmitter.emit('demandBookingUpdated', { bookingId: 'booking' });
+  });
+  expect(text()).toContain('Cancelled by customer');
+  expect(
+    tree.root.findAllByProps({ accessibilityLabel: 'Message customer' }),
+  ).toHaveLength(0);
 });
